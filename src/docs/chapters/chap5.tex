@@ -1,11 +1,11 @@
-\chapter{系统测试与实验分析}
+\chapter{实验分析}
 \vspace{7pt}
 
 \section{本章引言}
 
 前文完成了服务器日志异常检测系统的总体设计和模块实现。本章对系统进行功能测试与实验分析，验证系统是否能够完成从原始日志到异常检测结果的完整流程，并评估 Liquid 模型在日志异常检测任务中的有效性。实验内容包括实验环境说明、数据集划分、评价指标、功能测试、训练过程分析、异常检测结果、模型对比和参数影响分析。
 
-\section{实验环境与数据集说明}
+\section{实验设置}
 
 \subsection{实验环境}
 
@@ -28,9 +28,9 @@
     \end{tabular}
 \end{table}
 
-\subsection{BGL 数据集说明}
+\subsection{BGL 数据集}
 
-BGL 数据集来源于 BlueGene/L 超级计算机系统日志，是日志异常检测研究中常用的数据集。每条日志包含异常标签、时间戳、节点标识、日志来源、组件、日志级别和日志正文等字段。本文将 BGL 作为主要实验数据集，用于验证系统在大规模服务器日志场景下的检测效果。
+BGL 数据集来源于 BlueGene/L 超级计算机系统日志，是日志异常检测研究中常用的数据集。每条日志包含异常标签、时间戳、节点标识、日志来源、组件、日志级别和日志正文等字段。本文将 BGL 作为主要实验数据集，用于验证系统在大规模服务器日志场景下的检测效果\cite{oliner2007supercomputers,zhu2023loghub}。
 
 BGL 数据集基本统计信息如表 \ref{tab:bgl_dataset_information_revised} 所示。
 
@@ -50,9 +50,9 @@ BGL 数据集基本统计信息如表 \ref{tab:bgl_dataset_information_revised} 
     \end{tabular}
 \end{table}
 
-\subsection{HDFS 数据集说明}
+\subsection{HDFS 数据集}
 
-为验证系统对不同日志组织方式的适应性，本文在对比实验中引入 HDFS 数据集。HDFS 日志通常根据 Block ID 聚合为日志轨迹，再判断该轨迹是否异常。HDFS 数据集基本信息如表 \ref{tab:hdfs_dataset_information_revised} 所示。
+为验证系统对不同日志组织方式的适应性，本文在对比实验中引入 HDFS 数据集。HDFS 日志通常根据 Block ID 聚合为日志轨迹，再判断该轨迹是否异常。HDFS 数据集基本信息如表 \ref{tab:hdfs_dataset_information_revised} 所示\cite{xu2009detecting,zhu2023loghub}。
 
 \begin{table}[htbp]
     \centering
@@ -70,7 +70,7 @@ BGL 数据集基本统计信息如表 \ref{tab:bgl_dataset_information_revised} 
     \end{tabular}
 \end{table}
 
-\subsection{数据集划分方式}
+\subsection{数据划分}
 
 为避免未来信息泄露，BGL 数据集按照时间顺序划分为训练集、验证集和测试集。训练集用于模型参数学习，验证集用于阈值选择和模型选择，测试集仅用于最终评价。划分情况如表 \ref{tab:bgl_dataset_split_revised} 所示。
 
@@ -147,7 +147,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 功能测试还关注模块之间的接口一致性。日志解析模块输出的事件 ID 必须能够被特征工程模块识别，特征工程模块输出的张量维度必须与模型输入层一致，模型输出的异常评分必须能够被阈值判定模块读取。若其中任一环节发生字段缺失或维度不一致，后续模块将无法稳定运行。因此，本文在功能测试中同时检查数据内容和数据结构。
 
-\subsection{日志预处理功能测试}
+\subsection{预处理测试}
 
 日志预处理功能测试结果如表 \ref{tab:preprocess_test_result_revised} 所示。测试重点是检查格式噪声是否被清理，同时保证标签和时间字段不被改变。
 
@@ -165,7 +165,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
     \end{tabular}
 \end{table}
 
-\subsection{日志解析功能测试}
+\subsection{解析测试}
 
 日志解析功能测试结果如表 \ref{tab:parse_test_result_revised} 所示。该测试用于检查动态参数能否被统一替换，以及语义一致的日志能否映射到相同事件 ID。
 
@@ -184,7 +184,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
     \end{tabular}
 \end{table}
 
-\subsection{特征工程功能测试}
+\subsection{特征测试}
 
 特征工程功能测试结果如表 \ref{tab:feature_test_result_revised} 所示。系统能够将不同长度日志序列转换为固定长度模型输入。
 
@@ -202,7 +202,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
     \end{tabular}
 \end{table}
 
-\section{模型实验参数设置}
+\section{参数设置}
 
 本文使用 Liquid 模型对日志联合特征进行训练。实验参数如表 \ref{tab:model_parameter_setting_revised} 所示。
 
@@ -225,7 +225,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
     \end{tabular}
 \end{table}
 
-\section{模型训练过程分析}
+\section{训练分析}
 
 模型训练与验证损失变化趋势如图 \ref{fig:training_loss_curve_revised} 所示，训练过程关键指标如表 \ref{tab:train_val_loss_revised} 所示。二者共同说明模型在训练过程中能够逐步收敛，验证集 F1 值在后期趋于稳定。
 
@@ -255,9 +255,9 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
     \end{tabular}
 \end{table}
 
-\section{异常检测结果分析}
+\section{结果分析}
 
-\subsection{异常评分结果分析}
+\subsection{异常评分}
 
 表 \ref{tab:anomaly_score_result_revised} 展示了 BGL 测试集中若干连续窗口的异常评分示例。异常评分趋势如图 \ref{fig:anomaly_score_trend_revised} 所示。
 
@@ -284,7 +284,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
     \label{fig:anomaly_score_trend_revised}
 \end{figure}
 
-\subsection{混淆矩阵与评价结果}
+\subsection{评价结果}
 
 本文将 BGL 测试集最终结果统一为 Precision 为 0.945、Recall 为 0.932、F1 值为 0.938。基于该结果得到的混淆矩阵如表 \ref{tab:confusion_matrix_revised} 所示，评价指标如表 \ref{tab:liquid_detection_result_revised} 所示。
 
@@ -322,7 +322,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 \section{对比实验分析}
 
-为评估本文模型的相对效果，实验选取 PCA、Isolation Forest、DeepLog、LogAnomaly 和 LogBERT 作为对比模型。不同模型在 HDFS 和 BGL 数据集上的结果如表 \ref{tab:model_comparison_result_revised} 所示，F1 值对比如图 \ref{fig:model_f1_comparison_revised} 所示。
+为评估本文模型的相对效果，实验选取 PCA、Isolation Forest、DeepLog、LogAnomaly 和 LogBERT 作为对比模型。不同模型在 HDFS 和 BGL 数据集上的结果如表 \ref{tab:model_comparison_result_revised} 所示，F1 值对比如图 \ref{fig:model_f1_comparison_revised} 所示\cite{jolliffe2002pca,liu2008isolation,du2017deeplog,meng2019loganomaly,guo2021logbert}。
 
 \begin{table}[htbp]
     \centering
@@ -351,9 +351,9 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 从表 \ref{tab:model_comparison_result_revised} 可以看出，传统统计模型在复杂日志序列上的表达能力有限；序列模型能够利用上下文信息，整体效果优于传统模型；本文 Liquid 模型进一步引入真实时间间隔特征，在两个数据集上的 F1 值均高于对比模型。
 
-\section{参数影响分析}
+\section{参数影响}
 
-\subsection{输入序列长度对检测效果的影响}
+\subsection{序列长度}
 
 输入序列长度决定模型能够观察的上下文范围。不同输入序列长度对 BGL 验证集检测效果的影响如表 \ref{tab:sequence_length_effect_revised} 所示。
 
@@ -374,7 +374,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 由表 \ref{tab:sequence_length_effect_revised} 可知，序列长度过短时上下文不足；序列长度过长时训练成本增加，且可能引入与当前异常关系较弱的事件。本文最终选择 20 作为默认输入序列长度。
 
-\subsection{异常判定阈值对检测效果的影响}
+\subsection{判定阈值}
 
 异常阈值决定连续评分到离散标签的转换边界。不同阈值对检测效果的影响如表 \ref{tab:threshold_effect_revised} 所示。
 
@@ -396,7 +396,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 由表 \ref{tab:threshold_effect_revised} 可见，较低阈值能够提高 Recall，但会增加误报；较高阈值能够提高 Precision，但可能增加漏报。阈值 0.835 对应的 F1 值最高，因此本文将其作为最终异常判定阈值。
 
-\section{实验结果讨论}
+\section{结果讨论}
 
 综合实验结果，本文系统能够完成日志读取、预处理、解析、特征构建、模型训练、异常推断和结果输出的完整流程。功能测试表明，各模块输入输出格式稳定，训练阶段和检测阶段能够复用相同的模板空间和特征规则。模型实验表明，Liquid 模型在 BGL 测试集上取得了 0.938 的 F1 值，说明联合特征和连续时间建模对日志异常检测具有实际作用。
 

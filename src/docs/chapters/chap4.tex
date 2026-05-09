@@ -5,7 +5,7 @@
 
 第三章完成了系统需求分析与总体设计。本章进一步说明系统实现过程，重点描述日志读取与预处理、日志解析、联合特征构建、Liquid 异常检测模型、动态阈值校准和结果输出等模块。为保证实现说明与系统设计一致，本章按照数据流顺序展开，并在关键位置给出表格、公式和算法说明。
 
-\section{系统开发环境与技术选型}
+\section{环境工具}
 
 \subsection{开发环境}
 
@@ -29,7 +29,7 @@
     \end{tabular}
 \end{table}
 
-\subsection{主要技术工具}
+\subsection{技术工具}
 
 系统实现涉及文本处理、数值计算、模型训练和结果展示等环节。主要工具及作用如表 \ref{tab:main_technical_tools_revised} 所示。
 
@@ -50,9 +50,9 @@
     \end{tabular}
 \end{table}
 
-\section{日志数据读取与预处理模块实现}
+\section{预处理实现}
 
-\subsection{日志数据读取实现}
+\subsection{日志读取}
 
 日志读取模块负责将原始日志转化为结构化记录。以 BGL 日志为例，系统读取每条日志后抽取标签、时间、节点、组件、日志级别和正文等字段。读取流程如算法 \ref{alg:log_reading_revised} 所示。
 
@@ -91,7 +91,7 @@
     \end{tabular}
 \end{table}
 
-\subsection{日志清洗与规范化实现}
+\subsection{日志清洗}
 
 日志清洗模块对读取结果进行规范化处理。主要操作包括删除关键字段缺失记录、合并连续空白符、去除无意义控制字符、统一大小写规则以及保留异常标签。预处理流程如算法 \ref{alg:log_cleaning_revised} 所示。
 
@@ -128,9 +128,9 @@
     \end{tabular}
 \end{table}
 
-\section{日志解析模块实现}
+\section{解析实现}
 
-\subsection{动态参数识别}
+\subsection{参数识别}
 
 日志正文中大量参数只表示运行时变量，不应导致模板分裂。本文采用正则表达式识别常见动态参数，并将其替换为 \texttt{<*>}。识别规则如表 \ref{tab:dynamic_parameter_rules_revised} 所示。
 
@@ -151,7 +151,7 @@
     \end{tabular}
 \end{table}
 
-\subsection{日志模板提取与事件 ID 生成}
+\subsection{模板生成}
 
 动态参数替换后，系统将固定词项序列一致的日志归并为同一模板，并为每个模板分配事件 ID。模板提取和事件映射示例如表 \ref{tab:template_event_example_revised} 所示。
 
@@ -195,9 +195,9 @@
     \end{algorithmic}
 \end{algorithm}
 
-\section{特征工程模块实现}
+\section{特征实现}
 
-\subsection{时间窗口划分与标签生成}
+\subsection{窗口划分}
 
 系统按照固定时间长度 $\Delta T$ 切分日志流。第 $j$ 个窗口表示为
 \begin{equation}
@@ -214,7 +214,7 @@
 
 窗口长度的选择会影响样本粒度。窗口过短时，单个窗口内包含的事件数量不足，模型难以获得完整上下文；窗口过长时，多个不相关事件可能被聚合到同一样本中，异常位置也会被稀释。本文在实验中固定窗口机制，并通过输入序列长度和阈值分析考察关键参数影响。
 
-\subsection{事件频次特征实现}
+\subsection{频次特征}
 
 事件频次特征统计窗口内各模板出现次数。设模板总数为 $k$，窗口 $W_j$ 的频次向量为
 \begin{equation}
@@ -240,7 +240,7 @@
     \end{tabular}
 \end{table}
 
-\subsection{日志序列编码与时间间隔特征}
+\subsection{序列间隔}
 
 系统将窗口内事件按时间排序，并映射为固定长度序列
 \begin{equation}
@@ -266,7 +266,7 @@
     \end{tabular}
 \end{table}
 
-\subsection{联合特征表示}
+\subsection{联合特征}
 
 事件编码通过嵌入层映射为连续向量：
 \begin{equation}
@@ -299,9 +299,9 @@
     \end{algorithmic}
 \end{algorithm}
 
-\section{Liquid 异常检测模型实现}
+\section{模型实现}
 
-\subsection{模型输入与输出设计}
+\subsection{输入输出}
 
 Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签 $y_j$ 为监督信号。模型输出为窗口异常评分：
 \begin{equation}
@@ -309,7 +309,7 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
 \end{equation}
 训练阶段使用真实标签计算损失，检测阶段根据阈值将评分转换为预测标签。
 
-\subsection{模型结构实现}
+\subsection{模型结构}
 
 本文实现的模型由输入层、嵌入层、Liquid 时序建模层、全连接层和 Sigmoid 输出层组成，结构如图 \ref{fig:liquid_model_structure_revised} 所示。
 
@@ -342,7 +342,7 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
 
 为避免补齐事件影响窗口表示，系统在实现中记录有效事件长度。若窗口长度不足固定序列长度，补齐位置不作为最终有效时间步；若窗口长度超过固定序列长度，截取后的最后一个事件作为窗口状态输出位置。该处理能够保证模型输出对应真实日志事件，而不是补齐标记。
 
-\subsection{模型训练实现}
+\subsection{模型训练}
 
 模型训练使用二元交叉熵损失：
 \begin{equation}
@@ -368,7 +368,7 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
     \end{algorithmic}
 \end{algorithm}
 
-\subsection{模型参数设置}
+\subsection{模型参数}
 
 模型参数设置需要兼顾检测效果和训练效率。本文根据日志规模、模板数量和验证集结果确定主要参数，配置如表 \ref{tab:liquid_model_parameters_revised} 所示。
 
@@ -391,13 +391,13 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
     \end{tabular}
 \end{table}
 
-\section{异常检测与结果输出实现}
+\section{检测输出}
 
-\subsection{异常评分计算}
+\subsection{评分计算}
 
 异常检测阶段加载训练完成的模型、模板映射表、事件编码字典、归一化参数和最优阈值。对于待检测窗口 $W_j$，模型输出异常评分 $\hat{y}_j$，其取值范围为 $[0,1]$。评分越高，窗口被判定为异常的可能性越大。
 
-\subsection{动态阈值校准与异常判定}
+\subsection{阈值判定}
 
 验证集阈值校准过程如下：
 \begin{equation}
@@ -428,7 +428,7 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
     \end{algorithmic}
 \end{algorithm}
 
-\subsection{检测结果保存与展示}
+\subsection{结果保存}
 
 系统将检测结果保存为数据库表或 CSV 文件，主要字段包括窗口编号、起止时间、异常评分和预测标签。结果示例如表 \ref{tab:detection_result_example_revised} 所示。
 
@@ -448,7 +448,7 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
     \end{tabular}
 \end{table}
 
-\section{系统运行结果展示}
+\section{运行展示}
 
 系统运行结果示例如表 \ref{tab:system_running_result_revised} 所示。该表用于展示系统输出格式，与前文的异常评分计算和阈值判定过程相对应。
 

@@ -1,12 +1,19 @@
-\chapter{代码}
-\vspace{0.5cm}
+\chapter{核心流程}
+
+本文系统的核心处理流程如下：
 
 \begin{lstlisting}
-package main
+Input: raw_logs
+Output: anomaly_results
 
-import "fmt"
-
-func main() {
-    fmt.Println("hello world")
-}
+clean_logs = preprocess(raw_logs)
+events, template_map = parse_logs(clean_logs)
+features = build_features(events, timestamps)
+model = train_liquid_model(features.train)
+threshold = select_threshold(model, features.validation)
+scores = model.predict(features.test)
+labels = scores >= threshold
+save_results(scores, labels)
 \end{lstlisting}
+
+该流程对应正文中的日志预处理、日志解析、特征构建、模型训练、动态阈值校准和异常结果输出等模块。
