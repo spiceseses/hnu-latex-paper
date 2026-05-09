@@ -1,0 +1,55 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.brf
+*.fdb_latexmk
+*.fls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+*.xmpi
+
+# LaTeX temporary directories
+_minted-*/
+auto/
+build/
+out/
+
+# Generated thesis outputs
+/main.pdf
+/main.dvi
+/main.ps
+/src/main.pdf
+/src/main.dvi
+/src/main.ps
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local environment files
+.env
+.env.*
+!.env.example

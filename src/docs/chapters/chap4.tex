@@ -1,0 +1,849 @@
+\chapter{系统实现}
+
+\section{本章引言}
+
+第三章围绕基于日志分析的服务器异常检测系统完成了需求分析、总体架构设计、关键模块设计以及实验验证方案设计。在此基础上，本章从工程实现角度说明系统各模块的具体实现方法，并重点落实第三章提出的核心设计：面向连续时间建模的时间间隔特征、事件频次与事件序列的联合表示，以及基于验证集的动态阈值校准。
+
+本文系统以服务器原始日志为输入，依次经过日志读取与预处理、日志解析、特征工程、Liquid 异常检测模型训练、动态阈值校准和检测结果输出等环节\cite{zhu2019tools,he2021survey}，最终生成日志窗口级异常评分和异常判定结果。系统实现过程遵循“训练阶段固定规则、检测阶段复用规则”的原则：训练阶段生成日志模板映射、事件编码字典、归一化参数和最优阈值；
+
+
+\section{系统开发环境与技术选型}
+
+\subsection{开发环境}
+
+为了保证数据处理、模型训练和实验复现过程的一致性，本文在相对统一的软硬件环境下完成系统实现。系统主要采用 Python 语言开发，利用其在数据处理、文本解析和深度学习建模方面的生态支持，实现从日志读取到异常检测输出的完整流程\cite{mckinney2010data,harris2020array,paszke2019pytorch}。系统开发环境如表 \ref{tab:development_environment_revised} 所示。
+
+\begin{table}[htbp]
+    \centering
+    \caption{系统开发环境}
+    \label{tab:development_environment_revised}
+    \begin{tabular}{p{4cm}p{8cm}}
+        \toprule
+        \textbf{项目} & \textbf{配置或工具} \\
+        \midrule
+        操作系统 & Ubuntu 22.04 LTS \\
+        开发语言 & Python 3.10 \\
+        开发工具 & Visual Studio Code \\
+        深度学习框架 & PyTorch \\
+        数据处理工具 & Pandas、NumPy \\
+        文本处理工具 & \texttt{re} 正则表达式库 \\
+        数据存储方式 & MySQL、SQLite 或 CSV 文件 \\
+        可视化工具 & Matplotlib \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Python 语法简洁且第三方库成熟，适合快速实现日志预处理、特征构建和模型训练等任务。NumPy 用于事件频次向量、时间间隔向量和模型输入矩阵的构建\cite{mckinney2010data,harris2020array}；\cite{paszke2019pytorch}
+
+
+\subsection{主要技术工具}
+
+系统实现涉及日志解析、特征工程、模型训练和结果分析等多个环节。各工具在系统中的作用如表 \ref{tab:main_technical_tools_revised} 所示。
+
+\begin{table}[htbp]
+    \centering
+    \caption{系统主要技术工具及作用}
+    \label{tab:main_technical_tools_revised}
+    \begin{tabular}{p{3cm}p{3.2cm}p{6cm}}
+        \toprule
+        \textbf{技术工具} & \textbf{所属类别} & \textbf{主要作用} \\
+        \midrule
+        Python & 编程语言 & 实现系统各功能模块和实验流程。 \\
+        Pandas & 数据处理库 & 读取日志文件或数据库表，完成字段整理、排序、去重和时间转换。 \\
+        NumPy & 数值计算库 & 构建频次向量、时间间隔向量和批量模型输入。 \\
+        \texttt{re} & 文本处理库 & 识别动态参数并生成规范化日志文本。 \\
+        PyTorch & 深度学习框架 & 实现 Liquid 异常检测模型及训练、验证和推断流程。 \\
+        Matplotlib & 可视化工具 & 绘制损失曲线、评分趋势和实验指标图。 \\
+        MySQL/SQLite & 数据存储工具 & 管理日志模板、事件序列、特征数据和检测结果。 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+技术选型围绕系统目标展开：日志异常检测既需要处理大量结构化与半结构化文本，也需要对非规则时间序列进行建模。因此，系统以 Python 作为统一开发语言，以 Pandas、NumPy 和 \texttt{re} 完成数据处理与日志解析，以 PyTorch 实现可训练的 Liquid 时序模型，并通过可视化与数据库工具支持实验分析和结果追踪\cite{mckinney2010data,harris2020array,hunter2007matplotlib,paszke2019pytorch}。
+
+\section{日志数据读取与预处理模块实现}
+
+\subsection{日志数据读取实现}
+
+日志数据读取是系统处理流程的起点。已有系统日志研究表明，保留日志时间顺序、节点信息和文本内容是后续故障分析与异常检测的基础\cite{oliner2007supercomputers,xu2009detecting}。\begin{equation}
+    l_i=(t_i,node_i,level_i,source_i,msg_i,r_i),
+\end{equation}
+其中，$t_i$ 表示时间戳，$node_i$ 表示节点或主机标识，$level_i$ 表示日志级别，$source_i$ 表示日志来源或组件，$msg_i$ 表示日志正文，$r_i$ 表示原始标签。若数据集不提供节点、级别或来源字段，则系统使用统一占位符补齐；
+
+系统读取日志后的首要操作是统一字段名称和时间顺序。设原始日志集合为
+\begin{equation}
+    L=\{l_1,l_2,\cdots,l_n\},
+\end{equation}
+则排序后的日志序列为
+\begin{equation}
+    L'=sort(L,t_i).
+\end{equation}
+该操作保证后续窗口划分、时间间隔计算和 Liquid 状态更新均基于真实事件发生顺序。
+
+日志数据读取流程如算法 \ref{alg:log_reading_revised} 所示。
+\begin{algorithm}[htbp]
+    \caption{日志数据读取流程}
+    \label{alg:log_reading_revised}
+    \begin{algorithmic}[1]
+        \REQUIRE 原始日志数据源 $D$
+        \ENSURE 排序后的日志集合 $L'$
+        \STATE 连接日志文件或数据库表 $D$
+        \STATE 读取原始日志记录，得到日志集合 $L$
+        \STATE 提取时间戳、节点、级别、来源、正文和标签字段
+        \STATE 统一字段名称和字段顺序
+        \STATE 按时间戳对日志集合 $L$ 升序排列
+        \RETURN 排序后的日志集合 $L'$
+    \end{algorithmic}
+\end{algorithm}
+
+读取结果示例如表 \ref{tab:log_reading_result_revised} 所示。
+
+在具体实现中，日志读取函数同时支持批量读取和分块读取两种方式。当日志文件较小时，系统可一次性读取并转换为 DataFrame；
+
+
+\begin{table}[htbp]
+    \centering
+    \caption{日志数据读取结果示例}
+    \label{tab:log_reading_result_revised}
+    \begin{tabular}{p{1.4cm}p{3cm}p{2.5cm}p{1.5cm}p{4.2cm}}
+        \toprule
+        \textbf{编号} & \textbf{时间戳} & \textbf{节点} & \textbf{级别} & \textbf{日志内容} \\
+        \midrule
+        1 & 2025-03-01 10:12:03 & server01 & ERROR & Failed to connect to 192.168.1.10:8080 \\
+        2 & 2025-03-01 10:12:08 & server01 & INFO & User login success \\
+        3 & 2025-03-01 10:12:15 & server02 & WARN & Disk usage exceeds threshold \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{日志清洗与规范化实现}
+
+日志清洗与规范化的目标是降低无效记录和格式差异对日志解析及模型训练的影响\cite{jiang2008ael,zhu2019tools}。系统主要处理四类问题：关键字段缺失、重复记录、时间格式不统一和日志正文噪声。
+
+设经过字段检查后的有效日志集合为
+\begin{equation}
+    L_{valid}=\{l_i\mid t_i\neq null,\ msg_i\neq null\},
+\end{equation}
+去重后的日志集合为
+\begin{equation}
+    L_{unique}=RemoveDuplicate(L_{valid}).
+\end{equation}
+对于日志正文，系统清理连续空格、制表符、换行符和无意义特殊字符，并保留与事件语义有关的固定词项。正文规范化过程可表示为
+\begin{equation}
+    msg_i'=Normalize(msg_i).
+\end{equation}
+
+预处理流程如算法 \ref{alg:log_cleaning_revised} 所示。
+\begin{algorithm}[htbp]
+    \caption{日志清洗与规范化流程}
+    \label{alg:log_cleaning_revised}
+    \begin{algorithmic}[1]
+        \REQUIRE 排序后的日志集合 $L'$
+        \ENSURE 清洗后的日志集合 $L_{clean}$
+        \STATE 过滤时间戳或日志正文缺失的记录
+        \STATE 对非关键缺失字段使用 \texttt{<NULL>} 补齐
+        \STATE 根据时间戳、节点和日志正文删除重复记录
+        \STATE 将时间戳转换为统一时间格式
+        \STATE 清理日志正文中的制表符、换行符、连续空格和无效字符
+        \STATE 保留标签字段并按时间戳重新排序
+        \RETURN 清洗后的日志集合 $L_{clean}$
+    \end{algorithmic}
+\end{algorithm}
+
+日志正文清洗示例如表 \ref{tab:log_cleaning_example_revised} 所示。
+\begin{table}[htbp]
+    \centering
+    \caption{日志清洗与规范化示例}
+    \label{tab:log_cleaning_example_revised}
+    \begin{tabular}{p{6cm}p{6cm}}
+        \toprule
+        \textbf{原始日志内容} & \textbf{清洗后日志内容} \\
+        \midrule
+        Failed   to connect to 192.168.1.10:8080!!! & Failed to connect to 192.168.1.10:8080 \\
+        User\textbackslash tlogin\textbackslash tfailed & User login failed \\
+        Disk usage exceeds threshold \#\#\# & Disk usage exceeds threshold \\
+        Service restart successful  & Service restart successful \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{预处理结果示例}
+
+本文以 BGL 日志数据集为例展示预处理结果。BGL 是日志异常检测研究中常用的大规模系统日志数据集，能够反映超级计算机系统运行过程中的事件与故障特征\cite{oliner2007supercomputers,zhu2023loghub}。\begin{verbatim}
+- 1117838570 2005.06.03 R02-M1-N0-C:J12-U11
+  2005-06-03-15.42.50.363779 R02-M1-N0-C:J12-U11
+  RAS KERNEL INFO instruction cache parity error corrected
+- 1117838570 2005.06.03 R02-M1-N0-C:J12-U11
+  2005-06-03-15.42.50.527847 R02-M1-N0-C:J12-U11
+  RAS KERNEL INFO instruction cache parity error corrected
+- 1117838570 2005.06.03 R02-M1-N0-C:J12-U11
+  2005-06-03-15.42.50.675872 R02-M1-N0-C:J12-U11
+  RAS KERNEL INFO instruction cache parity error corrected
+- 1117838570 2005.06.03 R02-M1-N0-C:J12-U11
+  2005-06-03-15.42.50.823719 R02-M1-N0-C:J12-U11
+  RAS KERNEL INFO instruction cache parity error corrected
+- 1117838570 2005.06.03 R02-M1-N0-C:J12-U11
+  2005-06-03-15.42.50.982731 R02-M1-N0-C:J12-U11
+  RAS KERNEL INFO instruction cache parity error corrected
+\end{verbatim}
+
+单条日志记录可形式化表示为
+\begin{equation}
+    l_i=(label_i,ts_i,date_i,node_i,time_i,source_i,component_i,level_i,msg_i),
+\end{equation}
+其中，$label_i$ 为日志标签，$ts_i$ 为 Unix 时间戳，$date_i$ 为日期，$node_i$ 为节点标识，$time_i$ 为完整时间，$source_i$ 与 $component_i$ 分别表示日志来源和组件，$level_i$ 表示日志级别，$msg_i$ 表示日志正文。字段拆分示例如表 \ref{tab:preprocess_result_example_revised} 所示。
+
+\begin{table}[htbp]
+    \centering
+    \caption{预处理结果字段示例}
+    \label{tab:preprocess_result_example_revised}
+    \begin{tabular}{p{3cm}p{8.5cm}}
+        \toprule
+        \textbf{字段名称} & \textbf{字段内容} \\
+        \midrule
+        异常标签 & -（表示正常日志） \\
+        时间戳 & 1117838570 \\
+        日期 & 2005.06.03 \\
+        节点标识 & R02-M1-N0-C:J12-U11 \\
+        完整时间 & 2005-06-03-15.42.50.363779 \\
+        日志来源 & RAS \\
+        日志组件 & KERNEL \\
+        日志级别 & INFO \\
+        日志内容 & instruction cache parity error corrected \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+从示例可以看出，预处理模块在保留异常检测所需标签、时间和节点信息的同时，统一了日志字段结构，为后续模板提取、窗口标签生成和时间间隔计算提供了可靠输入。
+
+预处理阶段特别注意标签信息的保留。系统在清洗正文时只处理日志文本本身，不改变标签字段\cite{xu2009detecting,he2016experience}。
+
+
+\section{日志解析模块实现}
+
+日志解析模块将清洗后的非结构化日志正文转换为结构化事件序列；因此，系统先识别并替换动态参数，再提取日志模板，最后为模板分配事件 ID。\cite{jiang2008ael,he2017drain,zhu2019tools}
+
+设清洗后的日志集合为
+\begin{equation}
+    L_{clean}=\{l_1,l_2,\cdots,l_n\},
+\end{equation}
+其中，日志正文为 $msg_i$。日志解析过程表示为
+\begin{equation}
+    e_i=P(msg_i),
+\end{equation}
+其中，$P(\cdot)$ 为日志解析函数，$e_i$ 为日志事件 ID。解析后得到
+\begin{equation}
+    E=\{(e_1,t_1,r_1),(e_2,t_2,r_2),\cdots,(e_n,t_n,r_n)\},
+\end{equation}
+该序列同时保留事件编号、时间戳和原始标签，为后续窗口级样本构建提供依据。
+
+\subsection{动态参数识别}
+
+动态参数识别的目标是将日志文本中频繁变化但不改变事件语义的变量替换为统一通配符 \texttt{<*>}，以降低日志模板数量并增强事件表示稳定性\cite{jiang2008ael,du2016spell,he2017drain}。例如：
+\begin{verbatim}
+Failed to connect to 192.168.1.10:8080
+Failed to connect to 192.168.1.25:9090
+\end{verbatim}
+两条日志表示相同类型的连接失败事件。替换动态参数后，可统一为
+\begin{verbatim}
+Failed to connect to <*>:<*>
+\end{verbatim}
+
+本文采用正则表达式匹配常见动态参数，规则如表 \ref{tab:dynamic_parameter_rules_revised} 所示。
+\begin{table}[htbp]
+    \centering
+    \caption{常见动态参数识别规则}
+    \label{tab:dynamic_parameter_rules_revised}
+    \begin{tabular}{p{3cm}p{5cm}p{3cm}}
+        \toprule
+        \textbf{参数类型} & \textbf{示例} & \textbf{替换结果} \\
+        \midrule
+        IP 地址 & 192.168.1.10 & \texttt{<*>} \\
+        端口号 & 8080 & \texttt{<*>} \\
+        数字编号 & user\_12345 & user\_\texttt{<*>} \\
+        文件路径 & /var/log/server.log & \texttt{<*>} \\
+        时间信息 & 2025-03-01 10:12:03 & \texttt{<*>} \\
+        十六进制地址 & 0x7ffe12ab & \texttt{<*>} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+动态参数替换可表示为
+\begin{equation}
+    msg_i'=ReplaceParam(msg_i),
+\end{equation}
+其中，$msg_i'$ 为替换后的日志正文。为避免过度替换导致模板语义丢失，系统只替换高变动参数，并保留错误类型、操作动作和组件名称等固定语义词项。
+
+\subsection{日志模板提取与事件 ID 生成}
+
+日志模板提取是在参数替换基础上将相似日志归并为同一事件类型，这一思想与 LogCluster、Spell 和 Drain 等自动日志解析方法的目标一致\cite{vaarandi2015logcluster,du2016spell,he2017drain}。设参数替换后的文本集合为\begin{equation}
+    M=\{msg_1',msg_2',\cdots,msg_n'\},
+\end{equation}
+日志模板提取函数为
+\begin{equation}
+    template_i=ExtractTemplate(msg_i').
+\end{equation}
+系统遍历日志文本，将当前文本与已有模板比较；若固定词项和通配符位置满足匹配规则，则归入已有模板，否则生成新模板。最终得到模板集合
+\begin{equation}
+    T=\{T_1,T_2,\cdots,T_k\},
+\end{equation}
+其中，$k$ 为模板数量，通常远小于日志记录数 $n$。
+
+事件 ID 生成是在模板集合基础上建立唯一映射：
+\begin{equation}
+    EventID(T_j)=E_j.
+\end{equation}
+对于任意日志 $l_i$，若其模板为 $T_j$，则对应事件 ID 为 $E_j$。模板提取和事件映射示例如表 \ref{tab:template_event_example_revised} 所示。
+
+\begin{table}[htbp]
+    \centering
+    \caption{日志模板提取与事件 ID 示例}
+    \label{tab:template_event_example_revised}
+    \begin{tabular}{p{5.2cm}p{4.8cm}p{1.5cm}}
+        \toprule
+        \textbf{原始日志内容} & \textbf{日志模板} & \textbf{事件 ID} \\
+        \midrule
+        Failed to connect to 192.168.1.10:8080 & Failed to connect to \texttt{<*>}:\texttt{<*>} & E1 \\
+        Failed to connect to 192.168.1.25:9090 & Failed to connect to \texttt{<*>}:\texttt{<*>} & E1 \\
+        User admin login failed & User \texttt{<*>} login failed & E2 \\
+        Disk usage exceeds 90 percent & Disk usage exceeds \texttt{<*>} percent & E3 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+日志解析流程如算法 \ref{alg:log_parse_revised} 所示。
+\begin{algorithm}[htbp]
+    \caption{日志解析与事件 ID 生成流程}
+    \label{alg:log_parse_revised}
+    \begin{algorithmic}[1]
+        \REQUIRE 清洗后的日志集合 $L_{clean}$
+        \ENSURE 模板集合 $T$，模板映射表 $Map$，事件序列 $E$
+        \STATE 初始化模板集合 $T=\emptyset$，映射表 $Map=\emptyset$
+        \FOR{每一条日志 $l_i$}
+            \STATE 提取日志正文 $msg_i$
+            \STATE 使用正则规则替换动态参数，得到 $msg_i'$
+            \STATE 将 $msg_i'$ 与已有模板集合 $T$ 进行匹配
+            \IF{存在匹配模板 $T_j$}
+                \STATE 获取对应事件 ID $E_j$
+            \ELSE
+                \STATE 生成新模板 $T_j$ 并分配事件 ID $E_j$
+                \STATE 更新模板集合 $T$ 和映射表 $Map$
+            \ENDIF
+            \STATE 将 $(E_j,t_i,r_i)$ 加入事件序列 $E$
+        \ENDFOR
+        \RETURN $T,Map,E$
+    \end{algorithmic}
+\end{algorithm}
+
+
+在模板匹配过程中，系统既关注固定词项是否一致，也关注词项位置是否稳定。本文实现中先通过动态参数替换降低变量干扰，再根据固定词项序列进行模板归并，从而在模板数量和语义稳定性之间取得平衡\cite{zhu2019tools,wu2023representation}。
+
+训练阶段生成的模板映射表是系统后续运行的重要对象。二是便于分析模型输出异常时对应的日志语义。
+
+
+\section{特征工程模块实现}
+
+特征工程模块将日志事件序列转换为 Liquid 模型能够处理的数值序列。三者分别对应局部统计特征、上下文序列特征和连续时间特征，是本文方法创新在系统实现中的核心落点。\cite{wu2023representation,landauer2023survey}
+
+\subsection{时间窗口划分与标签生成}
+
+服务器日志是连续到达的事件流，异常通常表现为某一时间段内事件分布或事件顺序的变化\cite{xu2009detecting,fu2009execution,du2017deeplog}。系统以固定窗口长度 $\Delta T$ 切分日志流，第 $j$ 个窗口为
+\begin{equation}
+    W_j=\{e_i\mid T_j\leq t_i<T_j+\Delta T\}.
+\end{equation}
+窗口内事件按时间顺序组成
+\begin{equation}
+    S_j=\{e_{j1},e_{j2},\cdots,e_{jm}\}.
+\end{equation}
+当窗口内事件数大于固定序列长度 $s$ 时，系统保留最近 $s$ 个事件，以强化当前窗口状态；当事件数小于 $s$ 时，使用 \texttt{<PAD>} 补齐；
+
+由于原始数据通常提供日志级标签，而模型以窗口为样本单位，系统采用“任一异常”原则生成窗口标签：
+\begin{equation}
+    y_j=
+    \begin{cases}
+    1, & \exists r_i=1,\ e_i\in W_j,\\
+    0, & \text{否则}.
+    \end{cases}
+\end{equation}
+该规则符合服务器故障预警场景：只要窗口内包含异常日志，该时间段就需要被系统关注。
+
+窗口长度 $\Delta T$ 的选择会影响异常检测粒度。因此，系统将窗口长度作为可配置参数，并在第五章通过实验结果进一步分析其合理性。
+
+窗口标签采用“任一异常”原则虽然会使部分窗口被较严格地标记为异常，但该策略更符合故障预警目标。该规则也使模型输出与运维场景中的时间段告警保持一致。
+
+
+\subsection{事件频次特征实现}
+
+事件频次特征用于刻画窗口内日志类型分布。事件计数和窗口统计特征在早期系统日志异常检测中已被广泛使用\cite{xu2009detecting,lou2010mining,he2016experience}。\begin{equation}
+    V=\{v_1,v_2,\cdots,v_k\}.
+\end{equation}
+对于窗口 $W_j$，系统统计各事件出现次数，得到频次向量
+\begin{equation}
+    C_j=[c_{j1},c_{j2},\cdots,c_{jk}],
+\end{equation}
+其中，$c_{jp}$ 表示事件 $v_p$ 在窗口 $W_j$ 中的出现次数。为降低不同窗口日志总量差异的影响，系统进一步归一化：
+\begin{equation}
+    c'_{jp}=\frac{c_{jp}}{\sum_{p=1}^{k}c_{jp}+\varepsilon},
+\end{equation}
+其中，$\varepsilon$ 为极小常数，用于避免空窗口除零。归一化后的窗口级频次向量记为
+\begin{equation}
+    C'_j=[c'_{j1},c'_{j2},\cdots,c'_{jk}].
+\end{equation}
+
+事件频次特征示例如表 \ref{tab:event_frequency_example_revised} 所示。
+
+在实现时，系统对频次向量采用固定事件顺序排列。对于高维稀疏频次向量，系统可根据需要保存为稀疏矩阵格式，以减少存储开销\cite{du2017deeplog,meng2019loganomaly,wu2023representation}。
+
+
+\begin{table}[htbp]
+    \centering
+    \caption{事件频次特征示例}
+    \label{tab:event_frequency_example_revised}
+    \begin{tabular}{p{2cm}p{2cm}p{2cm}p{2cm}p{2cm}p{2cm}}
+        \toprule
+        \textbf{窗口} & \textbf{E1} & \textbf{E2} & \textbf{E3} & \textbf{E4} & \textbf{标签} \\
+        \midrule
+        $W_1$ & 1 & 0 & 2 & 0 & 0 \\
+        $W_2$ & 0 & 1 & 0 & 0 & 1 \\
+        $W_3$ & 1 & 0 & 0 & 2 & 0 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{日志序列编码与时间间隔特征}
+
+频次特征能够反映窗口内事件分布，但不能表达事件先后顺序，而日志事件序列中的上下文依赖是识别执行路径异常的重要信息\cite{du2017deeplog,zhang2019logrobust}。为保留序列依赖，系统为事件 ID 建立整数编码字典。\begin{equation}
+    Z_j=[z_{j1},z_{j2},\cdots,z_{js}],
+\end{equation}
+其中，$z_{jq}$ 为第 $q$ 个时间步的事件整数编码。编码值 0 预留给 \texttt{<PAD>}，未知模板使用 \texttt{<UNK>} 对应编码，空窗口使用 \texttt{<EMPTY>} 对应编码。
+
+为适配 Liquid 架构的连续时间建模能力，系统同时计算相邻日志事件的真实时间间隔\cite{chen2018neuralode,rubanova2019latentode,hasani2021liquid}。对于窗口 $W_j$ 中第 $q$ 个事件，其时间间隔定义为
+\begin{equation}
+    \delta_{jq}=t_{jq}-t_{j(q-1)},\quad q=2,3,\cdots,s.
+\end{equation}
+当 $q=1$ 时，$\delta_{j1}$ 设为 0 或设为窗口起始时间到首条日志的间隔；为保证数值稳定，系统对时间间隔进行归一化或对数缩放：\begin{equation}
+    \tilde{\delta}_{jq}=Norm(\delta_{jq}).
+\end{equation}
+该特征使模型能够区分“短时间内密集爆发的异常事件”和“较长时间内稀疏出现的正常事件”。
+
+在序列补齐时，系统同时生成掩码向量 $Mask_j$，用于标识每个位置是否为真实事件。掩码向量用于训练和推断阶段的有效状态选择，避免模型将补齐位置误认为真实日志事件。
+
+时间间隔特征是本文区别于普通离散序列建模方法的重要实现。将 $\delta_{jq}$ 显式输入模型，可以使 Liquid 层根据真实时间跨度调整隐藏状态更新强度，从而更准确地描述服务器状态随物理时间的变化。\cite{hochreiter1997lstm}
+
+
+日志序列编码示例如表 \ref{tab:sequence_encoding_example_revised} 所示。
+\begin{table}[htbp]
+    \centering
+    \caption{日志序列编码结果示例}
+    \label{tab:sequence_encoding_example_revised}
+    \begin{tabular}{p{2cm}p{4.5cm}p{4.5cm}}
+        \toprule
+        \textbf{窗口} & \textbf{原始事件序列} & \textbf{编码后序列} \\
+        \midrule
+        $W_1$ & E1,E3,E5,E3 & [1,3,5,3,0,0] \\
+        $W_2$ & E2,E8,E8,E12 & [2,8,8,12,0,0] \\
+        $W_3$ & E1,E4,E6,E4,E7,E2 & [1,4,6,4,7,2] \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{联合特征表示}
+
+为了同时利用事件语义、事件顺序、窗口分布和真实时间间隔，系统将三类特征构造为联合输入。首先，事件编码通过嵌入层映射为连续向量。\cite{mikolov2013efficient,wu2023representation}\begin{equation}
+    h_{jq}=Embedding(z_{jq}),\quad h_{jq}\in\mathbb{R}^{d}.
+\end{equation}
+随后，将归一化时间间隔 $\tilde{\delta}_{jq}$ 和窗口级频次向量 $C'_j$ 拼接到每个时间步，得到
+\begin{equation}
+    u_{jq}=[h_{jq};\tilde{\delta}_{jq};C'_j].
+\end{equation}
+因此，第 $j$ 个窗口的模型输入为
+\begin{equation}
+    U_j=\{u_{j1},u_{j2},\cdots,u_{js}\},\quad U_j\in\mathbb{R}^{s\times(d+k+1)}.
+\end{equation}
+
+特征工程整体流程如算法 \ref{alg:feature_engineering_revised} 所示。
+\begin{algorithm}[htbp]
+    \caption{联合特征构建流程}
+    \label{alg:feature_engineering_revised}
+    \begin{algorithmic}[1]
+        \REQUIRE 事件序列 $E$，窗口长度 $\Delta T$，固定序列长度 $s$
+        \ENSURE 联合特征集合 $U$，窗口标签集合 $Y$
+        \STATE 按窗口长度 $\Delta T$ 划分事件流，得到窗口集合 $W$
+        \FOR{每一个时间窗口 $W_j$}
+            \STATE 根据日志级标签生成窗口标签 $y_j$
+            \STATE 统计事件频次并归一化，得到 $C'_j$
+            \STATE 按时间顺序提取事件序列并截断或补齐，得到 $Z_j$
+            \STATE 计算相邻事件时间间隔并归一化，得到 $\tilde{\delta}_j$
+            \STATE 将事件嵌入、时间间隔和频次向量拼接为联合输入 $U_j$
+        \ENDFOR
+        \RETURN 联合特征集合 $U$ 和窗口标签集合 $Y$
+    \end{algorithmic}
+\end{algorithm}
+
+
+与将频次向量单独输入分类器不同，本文将 $C'_j$ 复制到窗口内每个时间步并与事件嵌入拼接。联合输入使模型能够在局部事件和窗口整体状态之间建立联系。
+
+为了保证训练和检测阶段特征一致，系统将事件编码字典、频次向量事件顺序、时间间隔归一化参数和固定序列长度一并保存。因此，本文将这些对象视为模型的一部分，与模型参数共同保存和加载\cite{he2016experience,zhu2019tools}。
+
+联合特征构建后，系统将所有窗口样本整理为三维张量形式。若样本数量为 $m$，序列长度为 $s$，单步输入维度为 $d+k+1$，则模型输入张量形状为
+\begin{equation}
+    X\in\mathbb{R}^{m\times s\times(d+k+1)}.
+\end{equation}
+对应标签向量为
+\begin{equation}
+    Y=[y_1,y_2,\cdots,y_m].
+\end{equation}
+该张量化表示便于使用 PyTorch 的批处理机制进行训练和推断，也使模型输入维度可以被明确检查。若模板数量、嵌入维度或拼接方式发生变化，系统能够在模型输入阶段发现维度不一致问题。
+
+
+\section{Liquid 异常检测模型实现}
+
+\subsection{模型输入与输出设计}
+
+Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签 $y_j$ 为监督信号。Liquid Time-Constant Networks 和连续时间神经网络为不规则时序状态建模提供了理论基础\cite{chen2018neuralode,hasani2021liquid,hasani2022closedform}。模型输入为\begin{equation}
+    U_j=\{u_{j1},u_{j2},\cdots,u_{js}\},
+\end{equation}
+其中，$s$ 为固定序列长度，$u_{jq}$ 为第 $q$ 个时间步的联合特征。模型输出为窗口异常评分：
+\begin{equation}
+    \hat{y}_j=F(U_j;\theta),
+\end{equation}
+其中，$F(\cdot)$ 表示 Liquid 异常检测模型，$\theta$ 表示模型参数，$\hat{y}_j\in[0,1]$ 表示第 $j$ 个窗口属于异常状态的概率。
+
+窗口真实标签定义为
+\begin{equation}
+    y_j=
+    \begin{cases}
+    1, & \text{日志窗口为异常状态},\\
+    0, & \text{日志窗口为正常状态}.
+    \end{cases}
+\end{equation}
+训练目标是使预测评分 $\hat{y}_j$ 尽可能接近真实标签 $y_j$，并在验证集上选择最优阈值完成最终二分类判定。
+
+\subsection{模型结构实现}
+
+本文实现的模型由输入层、嵌入层、Liquid 时序建模层、全连接层和 Sigmoid 输出层组成\cite{hasani2021liquid,hasani2022closedform}，结构如图 \ref{fig:liquid_model_structure_revised} 所示。
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.75cm and 0cm,
+        % 定义通用节点样式
+        box/.style={
+            rectangle,
+            rounded corners=6pt, % 圆角
+            draw=#1!60,          % 边框颜色
+            fill=#1!5,           % 填充背景色（非常淡的颜色）
+            thick,               % 边框粗细
+            minimum width=7.5cm, % 统一宽度
+            minimum height=1.1cm,% 统一高度
+            align=center,
+            font=\normalsize\sffamily
+        },
+        % 定义箭头样式
+        arrow/.style={
+            -{Stealth[scale=1.1]}, % 现代箭头样式
+            thick,
+            draw=gray!80           % 箭头颜色
+        }
+    ]
+
+    % ================= 定义节点 =================
+    % 1. 输入数据节点 (使用偏青色)
+    \node[box=teal] (input) {事件编码、时间间隔与频次特征};
+    
+    % 2. 模型内部层级 (使用偏蓝色)
+    \node[box=blue, below=of input] (emb) {Embedding 嵌入层与特征拼接};
+    \node[box=blue, below=of emb] (liquid) {Liquid 连续时间建模层};
+    \node[box=blue, below=of liquid] (fc) {全连接层};
+    \node[box=blue, below=of fc] (sigmoid) {Sigmoid 输出层};
+    
+    % 3. 输出结果节点 (使用偏橙色)
+    \node[box=orange, below=of sigmoid] (output) {异常评分};
+
+    % ================= 绘制箭头 =================
+    \draw[arrow] (input) -- (emb);
+    \draw[arrow] (emb) -- (liquid);
+    \draw[arrow] (liquid) -- (fc);
+    \draw[arrow] (fc) -- (sigmoid);
+    \draw[arrow] (sigmoid) -- (output);
+
+    % ================= 绘制背景分组虚线框 =================
+    \begin{scope}[on background layer]
+        % fit 属性自动包裹模型主体层
+        \node[rectangle, draw=gray!50, dashed, thick, rounded corners=8pt, 
+              inner xsep=0.6cm, inner ysep=0.5cm, fit=(emb)(sigmoid)] (model) {};
+        % 在虚线框左上角添加“模型架构”提示文字
+        \node[fill=white, text=gray!80, font=\footnotesize\sffamily, right=0.3cm] 
+              at (model.north west) {异常检测模型架构};
+    \end{scope}
+
+    \end{tikzpicture}
+    \caption{Liquid 异常检测模型结构}
+    \label{fig:liquid_model_structure_revised}
+\end{figure}
+
+各层功能如下：输入层接收特征工程生成的联合特征序列；嵌入层将离散事件编码映射为稠密向量\cite{chen2018neuralode,hasani2021liquid}。
+
+设 Liquid 层在第 $q$ 个时间步的输入为 $u_{jq}$，隐藏状态为 $r_{jq}$，则状态更新可抽象为
+\begin{equation}
+    r_{jq}=LiquidCell(u_{jq},r_{j(q-1)},\tilde{\delta}_{jq};\theta_l),
+\end{equation}
+其中，$\theta_l$ 为 Liquid 层参数，$\tilde{\delta}_{jq}$ 为归一化时间间隔。该表达式体现了 Liquid 模型与普通离散递归网络的主要区别：隐藏状态更新不仅依赖当前输入和上一隐藏状态，还显式引入相邻日志之间的真实时间间隔。
+
+窗口内全部时间步更新完成后，系统取最后一个有效时间步的隐藏状态作为窗口级表示。若窗口经过补齐，则最后一个有效位置由掩码确定，避免 \texttt{<PAD>} 对状态表示产生过大干扰。窗口级表示记为\begin{equation}
+    o_j=r_{j,last}.
+\end{equation}
+模型输出为
+\begin{equation}
+    \hat{y}_j=\sigma(Wo_j+b),
+\end{equation}
+其中，$W$ 为全连接层权重，$b$ 为偏置，$\sigma(\cdot)$ 为 Sigmoid 函数。
+
+
+\subsection{模型训练实现}
+
+训练集表示为
+\begin{equation}
+    D_{train}=\{(U_1,y_1),(U_2,y_2),\cdots,(U_N,y_N)\},
+\end{equation}
+其中，$U_i$ 为第 $i$ 个窗口的联合特征序列，$y_i$ 为窗口标签。对于二分类异常检测任务，系统采用二元交叉熵损失函数：
+\begin{equation}
+    Loss=-\frac{1}{N}\sum_{i=1}^{N}\left[y_i\log(\hat{y}_i)+(1-y_i)\log(1-\hat{y}_i)\right].
+\end{equation}
+训练过程中，系统通过反向传播计算梯度，并使用 Adam 优化器更新模型参数\cite{kingma2015adam}：
+\begin{equation}
+    \theta\leftarrow\theta-\eta\frac{\partial Loss}{\partial\theta},
+\end{equation}
+其中，$\eta$ 为学习率。
+
+训练流程如算法 \ref{alg:liquid_train_revised} 所示。
+\begin{algorithm}[htbp]
+    \caption{Liquid 异常检测模型训练流程}
+    \label{alg:liquid_train_revised}
+    \begin{algorithmic}[1]
+        \REQUIRE 训练集 $D_{train}$，验证集 $D_{val}$，训练轮数 $epoch$
+        \ENSURE 训练完成的模型 $M$，验证集异常评分 $Score_{val}$
+        \STATE 初始化模型参数 $\theta$
+        \STATE 设置损失函数、优化器和批处理大小
+        \FOR{$i=1$ to $epoch$}
+            \FOR{每一个批次 $(U,y)$}
+                \STATE 将联合特征序列 $U$ 输入模型
+                \STATE 计算异常评分 $\hat{y}=F(U;\theta)$
+                \STATE 根据 $\hat{y}$ 与真实标签 $y$ 计算损失 $Loss$
+                \STATE 执行反向传播并更新参数 $\theta$
+            \ENDFOR
+            \STATE 在验证集上计算损失和异常评分
+        \ENDFOR
+        \STATE 保存训练完成的模型参数和验证集评分
+        \RETURN 模型 $M$ 和验证集异常评分 $Score_{val}$
+    \end{algorithmic}
+\end{algorithm}
+
+训练阶段除保存模型参数外，还需要保存日志模板映射表、事件编码字典、特征归一化参数和验证集异常评分。这些对象将在检测阶段复用，保证训练和推断的数据处理规则一致。
+
+训练过程中还需要注意类别不平衡问题。因此，系统在每轮验证时不仅记录损失值，还记录 Precision、Recall 和 F1 值，并将验证集评分保留下来用于阈值校准。\cite{he2009imbalanced,saito2015precision}
+
+
+\subsection{模型参数设置}
+
+模型参数设置需要兼顾检测效果和训练效率。本文根据日志数据规模、模板数量、窗口长度和验证集结果确定主要参数，配置如表 \ref{tab:liquid_model_parameters_revised} 所示。
+
+\begin{table}[htbp]
+    \centering
+    \caption{Liquid 模型训练参数设置}
+    \label{tab:liquid_model_parameters_revised}
+    \begin{tabular}{p{5cm}p{6cm}}
+        \toprule
+        \textbf{参数名称} & \textbf{参数取值} \\
+        \midrule
+        输入序列长度 & 20 \\
+        事件嵌入维度 & 64 \\
+        隐藏层维度 & 64 \\
+        批处理大小 & 256 \\
+        学习率 & 0.001 \\
+        训练轮数 & 50 \\
+        优化器 & Adam \\
+        损失函数 & Binary Cross Entropy Loss \\
+        ODE 求解器 & Euler \\
+        展开步数 & 6 \\
+        输出激活函数 & Sigmoid \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+输入序列长度决定模型可观察的日志上下文范围；嵌入维度和隐藏层维度决定模型表示能力\cite{chen2018neuralode,hasani2021liquid}。
+
+
+上述参数的实验分析将在第五章进一步展开。
+
+
+\section{异常检测与结果输出实现}
+
+\subsection{异常评分计算}
+
+异常检测阶段首先加载训练阶段保存的模型参数、模板映射表、事件编码字典和归一化参数，然后对待检测日志执行与训练阶段一致的预处理、解析和特征工程。对于第 $j$ 个待检测窗口，模型输出异常评分\begin{equation}
+    score_j=F(U_j;\theta).
+\end{equation}
+评分取值范围为 $[0,1]$。系统记录每个窗口的编号、时间范围、异常评分和预测标签：\begin{equation}
+    Result_j=(id_j,start\_time_j,end\_time_j,score_j,label_j).
+\end{equation}
+
+\subsection{动态阈值校准与异常判定}
+
+由于服务器日志异常检测普遍存在类别不平衡问题，直接使用固定阈值 0.5 容易造成误报或漏报\cite{he2009imbalanced,saito2015precision}。本文在验证集上进行动态阈值校准。\begin{equation}
+    \alpha^*=\arg\max_{\alpha\in A}F1(\alpha),
+\end{equation}
+其中，$F1(\alpha)$ 由验证集在阈值 $\alpha$ 下的 Precision 和 Recall 计算得到。检测阶段使用 $\alpha^*$ 进行判定：
+\begin{equation}
+    label_j=
+    \begin{cases}
+    1, & score_j\geq\alpha^*,\\
+    0, & score_j<\alpha^*.
+    \end{cases}
+\end{equation}
+
+动态阈值校准与异常检测流程如算法 \ref{alg:dynamic_threshold_detection_revised} 所示。
+\begin{algorithm}[htbp]
+    \caption{动态阈值校准与异常检测流程}
+    \label{alg:dynamic_threshold_detection_revised}
+    \begin{algorithmic}[1]
+        \REQUIRE 验证集评分 $Score_{val}$，验证集标签 $Y_{val}$，测试日志 $L_{test}$，模型 $M$
+        \ENSURE 测试集检测结果 $Result$
+        \STATE 构造候选阈值集合 $A$
+        \FOR{每一个候选阈值 $\alpha$}
+            \STATE 根据 $\alpha$ 将验证集评分转换为预测标签
+            \STATE 计算 Precision、Recall 和 $F1(\alpha)$
+        \ENDFOR
+        \STATE 选择 $F1$ 最大的阈值 $\alpha^*$
+        \STATE 对 $L_{test}$ 执行预处理、日志解析和特征工程
+        \STATE 将测试特征输入模型 $M$，得到异常评分 $score_j$
+        \STATE 根据 $\alpha^*$ 生成异常检测标签 $label_j$
+        \STATE 保存窗口编号、时间范围、异常评分和检测结果
+        \RETURN 测试集检测结果 $Result$
+    \end{algorithmic}
+\end{algorithm}
+
+该策略将阈值选择过程从人工经验转化为验证集优化问题，能够在精确率和召回率之间取得更合理的平衡\cite{davis2006relationship,powers2011evaluation,saito2015precision}。
+
+阈值校准阶段的候选集合 $A$ 可按照固定步长在 $[0,1]$ 区间内生成，也可直接基于验证集评分的唯一取值生成。系统在每个候选阈值下统计 TP、FP、TN 和 FN，并计算 Precision、Recall 和 F1 值。
+
+
+\subsection{检测结果保存与展示}
+
+系统将检测结果保存为数据库表或 CSV 文件，主要字段包括窗口编号、起始时间、结束时间、异常评分和检测结果。结果示例如表 \ref{tab:detection_result_example_revised} 所示。
+
+\begin{table}[htbp]
+    \centering
+    \caption{异常检测结果示例}
+    \label{tab:detection_result_example_revised}
+    \begin{tabular}{p{1.4cm}p{3cm}p{3cm}p{2cm}p{2cm}}
+        \toprule
+        \textbf{编号} & \textbf{起始时间} & \textbf{结束时间} & \textbf{异常评分} & \textbf{检测结果} \\
+        \midrule
+        1 & 2025-03-01 10:00:00 & 2025-03-01 10:05:00 & 0.12 & 正常 \\
+        2 & 2025-03-01 10:05:00 & 2025-03-01 10:10:00 & 0.87 & 异常 \\
+        3 & 2025-03-01 10:10:00 & 2025-03-01 10:15:00 & 0.23 & 正常 \\
+        4 & 2025-03-01 10:15:00 & 2025-03-01 10:20:00 & 0.91 & 异常 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+在结果展示方面，系统既可以通过表格展示每个窗口的检测状态，也可以绘制异常评分随时间变化的趋势图\cite{hunter2007matplotlib}。需要说明的是，本节只展示系统输出形式和实现流程，准确率、精确率、召回率、F1 值及对比实验将在第五章给出。
+
+
+\section{系统运行结果展示}
+
+为验证系统各模块能够按设计流程串联运行，本文对完整处理链路进行了流程级测试。系统首先读取原始日志并完成字段整理和时间排序；Liquid 模型输出异常评分；
+
+系统运行结果示例如表 \ref{tab:system_running_result_revised} 所示。
+\begin{table}[htbp]
+    \centering
+    \caption{系统运行结果示例}
+    \label{tab:system_running_result_revised}
+    \begin{tabular}{p{1.6cm}p{3.4cm}p{3.2cm}p{2cm}p{1.8cm}}
+        \toprule
+        \textbf{窗口} & \textbf{事件序列} & \textbf{编码序列} & \textbf{异常评分} & \textbf{结果} \\
+        \midrule
+        $W_1$ & E1,E3,E5,E3 & [1,3,5,3,0,0] & 0.12 & 正常 \\
+        $W_2$ & E2,E8,E8,E12 & [2,8,8,12,0,0] & 0.87 & 异常 \\
+        $W_3$ & E1,E4,E6,E4 & [1,4,6,4,0,0] & 0.23 & 正常 \\
+        $W_4$ & E9,E12,E12,E8 & [9,12,12,8,0,0] & 0.91 & 异常 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+异常评分趋势可通过图 \ref{fig:anomaly_score_trend_revised} 展示。
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=12cm,            % 图片整体宽度
+            height=6.5cm,          % 图片整体高度
+            xlabel={时间窗口编号},    % 横轴标签
+            ylabel={异常评分},        % 纵轴标签
+            ymin=0, ymax=1.05,     % 纵轴范围留出些许余量
+            xmin=1, xmax=15,       % 横轴范围
+            xtick={1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}, % 横轴刻度
+            ytick={0, 0.2, 0.4, 0.6, 0.8, 1.0},          % 纵轴刻度
+            grid=both,             % 显示主次网格线
+            grid style={dashed, gray!30},                % 网格线样式
+            major grid style={solid, gray!40},
+            legend pos=north east, % 图例位置（右上角）
+            legend style={font=\small, draw=gray!50},    % 图例框样式
+            tick label style={font=\small},
+            label style={font=\small}
+        ]
+        
+        % 1. 绘制动态阈值线 alpha^*
+        % 这里假定最优阈值 alpha^* 为 0.75
+        \addplot[
+            domain=1:15,
+            samples=2,
+            color=red,
+            thick,
+            dashed
+        ] {0.75};
+        \addlegendentry{阈值线 $\alpha^*$}
+        
+        % 2. 绘制异常评分数据折线（模拟数据）
+        % 蓝色加粗线条，带有实心圆点标记
+        \addplot[
+            color=blue!80!black,
+            mark=*,
+            mark size=1.5pt,
+            thick
+        ] coordinates {
+            (1, 0.12)  % 正常
+            (2, 0.15)  % 正常
+            (3, 0.11)  % 正常
+            (4, 0.23)  % 正常波动
+            (5, 0.89)  % 异常突发！超过阈值
+            (6, 0.94)  % 异常持续！超过阈值
+            (7, 0.31)  % 异常恢复过程
+            (8, 0.18)  % 正常
+            (9, 0.20)  % 正常
+            (10, 0.14) % 正常
+            (11, 0.82) % 再次异常！超过阈值
+            (12, 0.22) % 恢复正常
+            (13, 0.19) % 正常
+            (14, 0.15) % 正常
+            (15, 0.12) % 正常
+        };
+        \addlegendentry{窗口异常评分}
+        
+        \end{axis}
+    \end{tikzpicture}
+    \caption{异常评分变化趋势示意图}
+    \label{fig:anomaly_score_trend_revised}
+\end{figure}
+
+由流程级运行结果可知，系统能够完成从原始日志输入到异常检测输出的完整链路。各模块之间的数据结构衔接清晰，训练阶段生成的模板映射、编码字典、归一化参数和阈值能够在检测阶段复用，从而保证模型推断过程的稳定性和一致性。
+
+
+\section{本章小结}
+
+本章在第三章总体设计基础上，对基于日志分析的服务器异常检测系统进行了实现说明，并将现有日志解析、特征表示和连续时间建模思想落实为可运行模块\cite{zhu2019tools,wu2023representation,hasani2021liquid}。首先，本文介绍了系统开发环境与主要技术工具，明确了 Python、Pandas、NumPy、\texttt{re}、PyTorch 和数据库工具在系统中的作用。
+
+在特征工程方面，本文以时间窗口为样本单位，构建了事件频次、事件序列和时间间隔三类特征，并将其拼接为联合特征序列，使模型能够同时利用局部分布、上下文顺序和连续时间信息。在模型实现方面，本文基于 PyTorch 构建 Liquid 异常检测模型，通过嵌入层、Liquid 连续时间建模层和 Sigmoid 输出层生成窗口异常评分，并采用二元交叉熵损失完成训练。
+
+

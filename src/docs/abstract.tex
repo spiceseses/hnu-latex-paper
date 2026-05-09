@@ -1,0 +1,11 @@
+\begin{abstractCN}
+    针对传统服务器异常检测方法依赖人工经验、特征表达能力受限且难以适应日志时序动态演变等问题，本文提出了一种基于日志深度分析的异常检测系统。现有方法在面对海量、高并发且包含复杂时序依赖的日志数据时，常暴露出泛化能力差、误报率高等缺陷。为此，本文系统首先对原始日志进行深度清洗与规范化，从源头上消除噪声干扰；随后提出启发式日志解析算法，将非结构化日志精准转化为结构化模板，并结合滑动时间窗口与事件频次等上下文关系构建时序特征工程。在核心模型训练阶段，本文引入 Liquid 架构对高维日志特征序列进行动态建模，利用其对非平稳时序数据的自适应优势，精准学习正常日志行为模式并实时捕捉微小异常序列。在真实的 HDFS 与 BGL 日志数据集上的实验结果表明，相比 DeepLog 等基线模型，本系统检测准确率达 98.7\%，F1 分数提升至 0.975，复杂场景误报率降低逾 15\%，且处理延迟保持在毫秒级。本文工作有效提升了异常检测的自动化程度与效率。
+
+    \keywordsCN 日志分析；服务器异常检测；日志解析；特征工程；Liquid 架构；时序建模
+\end{abstractCN}
+
+\begin{abstractENG}
+    Aiming at the problems that traditional server anomaly detection methods rely on manual experience, have limited feature representation capabilities, and are difficult to adapt to the dynamic evolution of log time series, this paper proposes an anomaly detection system based on deep log analysis. Existing methods often expose defects such as poor generalization ability and high false positive rates when facing massive, highly concurrent log data containing complex temporal dependencies. To this end, the proposed system first performs deep cleaning and normalization on raw logs to eliminate noise interference from the source. Subsequently, a heuristic log parsing algorithm is proposed to accurately transform unstructured logs into structured templates, and time series feature engineering is constructed by combining contextual relationships such as sliding time windows and event frequencies. In the core model training stage, this paper introduces the Liquid architecture to dynamically model high-dimensional log feature sequences, and utilizes its adaptive advantages for non-stationary time series data to accurately learn normal log behavior patterns and capture minor anomalous sequences in real-time. Experimental results on real-world HDFS and BGL log datasets show that, compared with baseline models like DeepLog, the detection accuracy of this system reaches 98.7\%, the F1-score increases to 0.975, the false positive rate in complex scenarios is reduced by over 15\%, and the processing latency is maintained at the millisecond level. The work in this paper effectively improves the automation degree and efficiency of anomaly detection.
+
+    \keywordsENG Log Analysis; Server Anomaly Detection; Log Parsing; Feature Engineering; Liquid Architecture; Time Series Modeling
+\end{abstractENG}

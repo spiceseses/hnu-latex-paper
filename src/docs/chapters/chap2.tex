@@ -1,0 +1,203 @@
+\chapter{相关理论与关键技术}
+\vspace{7pt}
+
+\section{服务器日志概述}
+
+服务器日志是服务器系统在运行过程中自动生成的记录数据，通常用于描述系统状态、用户请求、程序执行过程、异常错误以及资源访问情况。对于服务器运维人员而言，日志是分析系统运行状态、定位故障原因和发现异常行为的重要依据。\cite{oliner2007supercomputers,xu2009detecting,he2021survey,landauer2023survey}
+
+服务器日志一般具有以下特点：
+
+\begin{enumerate}
+    \item \textbf{数据量大。} 服务器在运行过程中会持续产生大量日志，尤其是在高并发访问、分布式部署和微服务架构环境下，日志规模往往呈现快速增长趋势。公开日志数据集与大规模系统日志研究表明，真实系统日志通常具有明显的规模化和持续增长特征\cite{oliner2007supercomputers,zhu2023loghub}。
+    
+    \item \textbf{格式多样。} 不同系统、不同应用程序以及不同日志组件生成的日志格式并不完全相同。有些日志具有较为固定的字段结构，而有些日志则表现为半结构化或非结构化文本。日志格式多样性也是自动日志解析研究需要解决的核心问题之一\cite{zhu2019tools,he2021survey}。
+    
+    \item \textbf{时序性强与非规则采样 (Irregular Sampling)。} 日志按照时间顺序产生，但其时间间隔是极不均匀的。在系统正常空闲时，日志生成稀疏；而在异常爆发时，短时间内会产生密集的错误日志爆发 (Log Bursts)。这种非规则的时间采样特性是日志序列最显著的时序特征之一，也使得日志异常检测不仅需要关注事件类型，还需要关注事件之间的时间关系\cite{xu2009detecting,fu2009execution,che2018grud,rubanova2019latentode}。
+    
+    \item \textbf{噪声较多。} 原始日志中可能包含重复记录、无关字段、动态参数、调试信息和异常字符等内容，这些信息会增加后续分析的复杂度。因此，在日志解析和异常检测之前，通常需要对日志进行清洗、模板化和结构化处理\cite{jiang2008ael,zhu2019tools}\cite{he2016experience,he2021survey}。
+    
+    \item \textbf{极端类别不平衡。} 在实际服务器运行过程中，绝大多数日志对应正常状态，异常日志所占比例通常极低，这构成了典型的长尾分布，极易导致模型训练陷入类别不平衡陷阱。类别不平衡会使模型在准确率较高的同时忽视少数异常样本，因此需要结合精确率、召回率、F1 值和 PR 曲线等指标进行综合评估\cite{he2009imbalanced,saito2015precision}。
+\end{enumerate}
+
+
+\section{日志数据预处理}
+
+原始服务器日志通常不能直接用于模型训练，需要先进行数据预处理。日志预处理的目标是清理原始日志中的无效信息，统一日志数据格式，降低数据噪声，并为后续日志解析和特征工程提供规范化输入。\cite{zhu2019tools,he2021survey}
+
+\subsection{日志数据清洗}
+
+日志数据清洗是预处理阶段的重要步骤，主要用于去除原始数据中的无效记录和噪声信息。本文在日志清洗阶段主要考虑以下内容：
+
+\begin{enumerate}
+    \item \textbf{空值处理。} 对日志记录中缺失严重或无实际意义的字段进行删除，对部分关键字段缺失的日志记录进行过滤。
+    \item \textbf{重复日志去除。} 对完全重复或高度相似的日志记录进行识别，避免重复数据对特征统计和模型训练产生偏差。
+    \item \textbf{异常字符清理。} 删除日志文本中无意义的特殊符号、乱码字符和不可见字符，提高日志文本的规范性。
+    \item \textbf{无关字段过滤。} 对与异常检测任务关系较弱的字段进行筛选，减少冗余信息，提高后续处理效率。
+\end{enumerate}
+
+通过上述处理，原始日志中与异常检测无关或会干扰模型学习的内容能够被有效削弱，从而提升后续模板解析、事件统计和时序建模的稳定性\cite{jiang2008ael,zhu2019tools}。
+
+\subsection{时间戳标准化}
+
+日志数据具有明显的时间属性，因此时间戳字段的处理对日志分析至关重要。设原始日志记录集合为 $L = \{l_1, l_2, \cdots, l_n\}$，每条日志记录通常可以表示为 $l_i = (t_i, c_i, m_i)$，其中 $t_i$ 表示日志时间戳，$c_i$ 表示结构化字段，$m_i$ 表示日志文本内容。
+
+\begin{equation}
+    L' = sort(L, t_i)
+\end{equation}
+
+经过排序后的日志数据能够严格保留系统运行过程中的事件先后关系与真实的时间跨度，这对于后续捕捉异常演化速率具有决定性作用。尤其在非规则采样场景中，相邻日志之间的时间间隔可能直接反映系统状态变化速度，因此时间戳标准化是连续时间建模和时间间隔特征构建的基础\cite{baytas2017tlstm,che2018grud,rubanova2019latentode}。
+
+\subsection{日志级别处理}
+
+服务器日志通常包含 INFO、WARN、ERROR、DEBUG 和 FATAL 等日志级别。因此，对日志级别的提取与编码能够为模型提供强有力的先验信息。\cite{xu2009detecting,he2016experience}
+
+\section{日志解析技术}
+
+原始服务器日志通常以自然语言文本形式存在，直接对非结构化文本进行建模会引入大量无关变量。通过日志解析，非结构化日志可以被转换为结构化事件序列，从而降低文本噪声并提高异常检测模型的输入质量\cite{jiang2008ael,zhu2019tools,he2021survey}。
+
+\subsection{日志模板}
+
+日志模板是指日志文本中描述日志事件类型的固定部分；动态参数则是随运行环境变化的变量（如 IP 地址、时间数值、内存地址等）。例如：
+
+\begin{verbatim}
+2025-03-01 10:12:03 ERROR Failed to connect to 192.168.1.10:8080
+2025-03-01 10:12:08 ERROR Failed to connect to 192.168.1.15:8080
+\end{verbatim}
+
+经过解析后，上述日志可归并为统一的模板：\texttt{Failed to connect to <*>:<*>}。设日志解析函数为 $P(\cdot)$，则日志可被映射为离散的事件 ID：$e_i = P(m_i)$。\cite{jiang2008ael,du2016spell,he2017drain,zhu2019tools}
+
+\subsection{常见日志解析方法}
+
+常见日志解析方法包括：
+\begin{enumerate}
+    \item \textbf{基于规则的方法：} 依赖人工编写正则表达式，实现简单但扩展性差。此类方法适合日志格式稳定、系统规模较小或业务规则明确的场景，但面对日志模板频繁变化时维护成本较高\cite{jiang2008ael,zhu2019tools}。
+    \item \textbf{基于聚类的方法：} 如 LogCluster，通过文本相似度聚类提取模板，但在海量日志下计算成本高。类似的日志模式挖掘方法还包括 IPLoM、LogMine 等，它们通过分区、聚类或模式识别从日志中抽取模板结构\cite{makanju2009iplom,vaarandi2015logcluster,hamooni2016logmine}。
+    \item \textbf{基于树结构的方法：} 如 Drain，利用固定深度解析树和启发式规则分层匹配，具有较高的解析效率和可扩展性，是目前常用的在线解析方案之一\cite{he2017drain}。
+    \item \textbf{基于深度学习的方法：} 自动学习语义表示，但推理开销较大，通常难以满足流式日志的实时处理需求。近年来，NuLog、UniParser、LogPPT 等方法进一步探索了自监督学习、统一解析模型和提示学习在日志解析中的应用\cite{nedelkoski2020nulog,liu2022uniparser,le2023logppt}。
+\end{enumerate}
+
+总体来看，日志解析技术的目标是尽可能准确地恢复日志事件模板，同时降低动态参数带来的文本稀疏性，为后续日志特征工程和异常检测模型提供统一输入\cite{zhu2019tools,he2021survey}。
+
+\section{日志特征工程}
+
+日志解析完成后，为了使异常检测模型能够有效学习日志数据的动态演化规律，必须构建合理的数值化特征。不同特征能够从不同角度描述系统状态，因此特征工程质量会直接影响异常检测效果\cite{xu2009detecting,du2017deeplog,meng2019loganomaly,wu2023representation}。
+
+\subsection{事件频次特征}
+
+事件频次特征 (Count Vector) 旨在固定时间窗口内统计各类日志模板的出现次数。设日志模板集合为 $V = \{v_1, v_2, \cdots, v_k\}$，对于第 $j$ 个时间窗口 $W_j$，其事件频次向量表示为：
+
+\begin{equation}
+    X_j = [x_{j1}, x_{j2}, \cdots, x_{jk}]
+\end{equation}
+
+事件频次能够宏观反映局部时间范围内的状态分布，但丢失了事件内部的微观演化顺序。早期系统日志异常检测研究中，事件计数和统计分布特征常被用于刻画系统在给定时间窗口内的运行状态，并进一步用于问题检测和异常识别\cite{xu2009detecting,lou2010mining,he2016experience}。
+
+\subsection{时间窗口与时间间隔特征 (Time-delta)}
+
+为解决连续无界的日志流划分问题，常采用时间窗口机制。然而，传统的“固定时间窗口”虽然聚合了日志片段，但掩盖了窗口内部日志事件爆发的真实密度，这与连续时序建模（如 Liquid 架构）的需求存在理论冲突。
+
+为弥补这一缺陷，除了按固定窗口划分序列外，本文在序列特征中引入了\textbf{时间间隔特征 (Time-delta)}。设连续发生的两个日志事件为 $e_{i-1}$ 和 $e_i$，其真实时间戳为 $t_{i-1}$ 和 $t_i$，则相邻事件的时间间隔定义为：\cite{baytas2017tlstm,che2018grud,chen2018neuralode,rubanova2019latentode}
+
+\begin{equation}
+    \Delta t_i = t_i - t_{i-1}
+\end{equation}
+
+
+\subsection{日志序列特征}
+
+日志事件之间的顺序关系是检测逻辑异常（如执行路径违规）的关键。模型通过学习正常子序列的转移概率，可以有效甄别出诸如“数据库连接失败$\rightarrow$未执行重试$\rightarrow$直接抛出系统崩溃”等异常时序模式。\cite{du2017deeplog,zhang2019logrobust}
+
+\subsection{日志模板的连续空间编码 (Embedding)}
+
+日志事件 ID 本质上是毫无数学距离度量的离散分类变量。常见的整数编码 (Integer Encoding) 强行赋予了 ID 大小关系，容易误导模型；
+
+更重要的是，针对 Liquid 架构等依赖连续状态空间演化的微分方程模型，必须提供平滑的连续输入特征。因此，本文强调使用\textbf{嵌入编码 (Embedding)} 或语义向量（如 Word2Vec），将离散的日志模板 $v_i$ 映射为低维稠密向量空间中的连续表示 $h_i \in \mathbb{R}^d$。\cite{mikolov2013efficient,devlin2019bert,meng2019loganomaly,guo2021logbert,wu2023representation}
+
+\section{异常检测理论}
+
+在服务器日志分析场景中，异常检测的目标是通过数学模型量化日志序列偏离正常“健康流形 (Manifold)”的程度。异常检测通常用于识别与多数正常样本显著不同的数据点、上下文行为或序列模式，是数据挖掘、机器学习和系统可靠性工程中的基础问题之一\cite{chandola2009anomaly,hodge2004survey,pimentel2014review}。
+
+\subsection{异常类型}
+
+服务器日志异常主要分为：
+\begin{enumerate}
+    \item \textbf{点异常 (Point Anomaly)：} 单条日志本身即为严重错误（如 FATAL 崩溃日志）。
+    \item \textbf{上下文异常 (Contextual Anomaly)：} 事件本身正常，但在特定时间点出现则属异常（如系统平稳运行时频繁出现启动初始化日志）。
+    \item \textbf{序列异常 (Collective/Sequential Anomaly)：} 个体日志均正常，但其组合顺序或爆发频率违反了正常物理逻辑。本文重点关注后两者。
+\end{enumerate}
+
+点异常、上下文异常和集体异常是异常检测文献中常见的分类方式。对于服务器日志而言，单条错误日志并不总是意味着系统异常，而多个正常事件在特定时间和顺序下组合出现，反而可能反映更深层的系统故障传播过程\cite{chandola2009anomaly,du2017deeplog,he2021survey}。
+
+\subsection{类别不平衡与“准确率悖论”}
+
+服务器日志异常检测面临极端的类别不平衡问题（正常样本远多于异常样本）。例如，若数据集中 99\% 为正常日志，模型只需将所有样本无脑预测为“正常”，即可获得 99\% 的极高准确率，但这在异常检测中是毫无意义的。
+
+因此，在异常检测实验中，仅报告准确率并不能真实反映模型对少数异常样本的识别能力。类别不平衡学习研究指出，模型训练与评价应更加关注少数类召回能力、误报控制能力以及不同错误代价之间的平衡\cite{he2009imbalanced,chawla2002smote,saito2015precision}。
+
+\subsection{日志异常检测评价指标与动态阈值}
+
+为了科学评估模型在不平衡数据上的真实表现，必须引入精确率 (Precision)、召回率 (Recall) 和 F1 值 (F1-score)：
+
+\begin{equation}
+    Precision = \frac{TP}{TP + FP}, \quad Recall = \frac{TP}{TP + FN}
+\end{equation}
+\begin{equation}
+    F1 = \frac{2 \times Precision \times Recall}{Precision + Recall}
+\end{equation}
+
+进一步地，为了应对类别不平衡，理论上不能采用静态的 0.5 作为判定阈值。在类别高度不平衡的二分类任务中，PR 曲线往往比 ROC 曲线更能反映模型对正类样本的检测质量，因此本文在阈值选择和模型评价中重点关注 Precision、Recall 和 F1 值\cite{davis2006relationship,fawcett2006roc,powers2011evaluation,saito2015precision}。
+
+\section{传统深度学习在日志异常检测中的局限性}
+
+深度学习通过自动特征提取，极大推动了日志异常检测的发展，但主流的离散时序模型在面对复杂的服务器真实物理状态时仍存在深层理论缺陷。现有代表性方法包括基于 LSTM 的 DeepLog、融合语义和数量信息的 LogAnomaly，以及基于 Transformer/BERT 的 LogBERT 等\cite{du2017deeplog,meng2019loganomaly,guo2021logbert}。
+
+\subsection{基于 RNN 与 LSTM 的离散时间假设缺陷}
+
+DeepLog 等方法广泛采用 LSTM 对日志进行建模\cite{du2017deeplog}。然而，传统 RNN 和 LSTM 隐含了一个强烈的数学假设：\textbf{序列的演化是基于离散且等距的时间步（即假定 $\Delta t \equiv 1$）}\cite{hochreiter1997lstm}。
+在真实的服务器环境中，日志的采样是不规则的。例如，系统可能在 1 毫秒内由于级联故障爆发 100 条错误日志，也可能在 1 小时内仅输出几条心跳日志。\cite{baytas2017tlstm,che2018grud,rubanova2019latentode}
+
+\subsection{基于 Transformer 的局限性}
+
+LogBERT 等基于 Transformer 的方法利用自注意力机制有效解决了长距离依赖问题\cite{vaswani2017attention,guo2021logbert}。但 Transformer 依然是基于位置编码 (Positional Encoding) 的离散序列模型，同样缺乏对连续物理时间的建模能力。\cite{devlin2019bert,guo2021logbert,ott2021transferable}
+
+为了突破上述传统离散模型的固有缺陷，引入能够在连续时间域上对不规则采样信号进行平滑建模的动态系统势在必行。
+
+\section{Liquid 架构相关理论与技术}
+
+Liquid 架构 (Liquid Neural Networks) 是一类基于连续时间动态系统的递归神经网络结构。Neural ODE 将深度网络与连续时间动力系统联系起来，而 Liquid Time-Constant Networks 则进一步通过输入依赖的时间常数增强了模型对动态环境的适应能力\cite{chen2018neuralode,hasani2021liquid}。
+
+\subsection{Liquid Time-Constant Networks (LTC) 核心数学思想}
+
+Liquid Time-Constant Networks 是 Liquid 架构中最具代表性的模型。传统 Neural ODE 将隐状态导数定义为神经网络：$dh(t)/dt = f(h(t), x(t), \theta)$。\cite{hasani2021liquid}
+
+LTC 中单一神经元隐状态 $x(t)$ 的演化由以下常微分方程支配：
+\begin{equation}
+    \frac{dx(t)}{dt} = - \left[ \frac{1}{\tau} + f(I(t), x(t), \theta) \right] x(t) + f(I(t), x(t), \theta) A
+    \label{eq:ltc_core}
+\end{equation}
+
+其中，$\tau$ 是基础时间常数，$I(t)$ 是时间 $t$ 时的外部输入特征（即日志 Embedding），$A$ 是静息电位状态。网络 $f(I(t), x(t), \theta)$ 作为一个非线性的突触传递函数，其输出通常被限制在 $[0,1]$ 区间内\cite{hasani2022closedform,lechner2020neural}。
+
+为了更直观地理解其物理意义，可将方程 \ref{eq:ltc_core} 中的时间常数项提取出来，定义系统的\textbf{有效动态时间常数 $\tau_{sys}$} 为：
+\begin{equation}
+    \tau_{sys} = \frac{\tau}{1 + \tau f(I(t), x(t), \theta)}
+\end{equation}
+
+该公式揭示了 Liquid 架构应对日志异常的理论优越性：
+\begin{enumerate}
+    \item \textbf{日志稀疏时的平滑记忆：} 当系统正常、日志输入 $I(t)$ 稀疏微弱时，$f(\cdot) \approx 0$，系统的时间常数 $\tau_{sys} \approx \tau$ 较大。隐状态衰减极慢，模型能够跨越漫长的绝对物理时间，维持对健康流形的长期平滑记忆。
+    \item \textbf{异常爆发时的极速响应：} 当服务器发生故障、短时间内爆发出高密集的异常特征输入 $I(t)$ 时，$f(\cdot)$ 迅速增大，导致 $\tau_{sys}$ 急剧缩小。系统状态对新输入的敏感度呈指数级上升，模型得以在连续时间空间内极速捕捉到状态突变并输出异常告警。
+\end{enumerate}
+
+
+\subsection{Liquid 架构在本文异常检测中的结合机制}
+
+在本文设计的服务器异常检测系统中，Liquid 架构从根本上替代了离散的 LSTM 模块。其结合机制如下：
+
+\begin{enumerate}
+    \item \textbf{连续状态输入：} 离散的日志事件 ID 首先经过 Embedding 层映射为连续稠密向量，并辅以显式的时间间隔特征 $\Delta t$。该设计使模型输入能够同时包含日志语义、事件序列和非规则时间间隔信息\cite{mikolov2013efficient,che2018grud,rubanova2019latentode}。
+    \item \textbf{ODE 积分演化：} Liquid 模型利用欧拉法 (Euler method) 等数值积分求解器，在实际物理时间区间 $[t_{i-1}, t_i]$ 上对隐状态进行连续演化求解。这使得哪怕在同一个固定时间窗口内，模型也能敏锐感知内部日志的真实物理节奏\cite{chen2018neuralode,hasani2021liquid}。
+    \item \textbf{动态边界判别：} 模型输出演化后的最终隐状态，经过全连接层映射为 $[0,1]$ 的异常评分。结合基于 PR 曲线的动态阈值理论，系统能够自适应地切割高维连续状态空间，精准锁定脱离正常动态吸引子的异常演化轨迹\cite{saito2015precision,hasani2021liquid}。
+\end{enumerate}
+
+通过上述理论层面的革新，本文将异常检测从“离散序列模式匹配”升维至“连续动态系统状态监测”，为解决复杂服务器日志的时序建模难题提供了坚实的数学与架构基础。

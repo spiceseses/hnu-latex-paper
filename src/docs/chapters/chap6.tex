@@ -1,0 +1,132 @@
+\chapter{总结与展望}
+
+\section{研究工作总结}
+
+随着服务器系统规模的不断扩大和业务复杂度的持续提升，服务器运行过程中产生的日志数据规模不断增加。日志数据记录了系统运行状态、服务调用过程、错误信息以及异常行为，是服务器故障诊断和运行状态监控的重要依据\cite{oliner2007supercomputers,xu2009detecting,he2021survey}。\cite{chandola2009anomaly,he2016experience,landauer2023survey}
+
+本文围绕服务器日志异常检测问题，设计并实现了一种基于日志分析和 Liquid 架构的服务器异常检测系统\cite{chen2018neuralode,hasani2021liquid}。系统以原始服务器日志数据为输入，经过日志数据读取、日志预处理、日志解析、特征工程、Liquid 异常检测模型训练以及异常检测结果输出等步骤，实现对服务器运行状态的自动化分析和异常识别。
+
+本文主要研究工作总结如下：\cite{zhu2019tools,he2021survey}
+
+\begin{enumerate}
+    \item \textbf{完成了服务器异常检测系统的需求分析与总体设计。}
+    
+
+
+    \item \textbf{实现了日志数据读取与预处理模块。}\cite{jiang2008ael,zhu2019tools}
+    
+
+
+    \item \textbf{实现了日志解析与事件序列生成方法。}\cite{du2016spell,he2017drain,zhu2019tools}
+    
+
+
+    \item \textbf{构建了面向异常检测的日志特征工程方法。}\cite{xu2009detecting,du2017deeplog,meng2019loganomaly,wu2023representation}
+    
+
+
+    \item \textbf{构建了基于 Liquid 架构的异常检测模型。}\cite{chen2018neuralode,hasani2021liquid,hasani2022closedform}
+    
+
+
+    \item \textbf{完成了系统测试与实验分析。}
+    
+    为了验证系统的可行性和有效性，本文对系统各功能模块进行了测试，包括日志预处理、日志解析、特征工程、模型训练、异常检测和结果输出等模块。实验结果表明，系统能够完成从原始日志数据到异常检测结果输出的完整流程。同时，本文通过准确率、精确率、召回率和 F1 值等指标对模型性能进行了评价\cite{fawcett2006roc,powers2011evaluation,saito2015precision}，并通过对比实验和参数影响分析验证了 Liquid 模型在服务器日志异常检测任务中的有效性。
+\end{enumerate}
+
+
+\section{研究成果}
+
+本文围绕服务器日志异常检测任务展开研究，取得的主要成果如下：
+
+\begin{enumerate}
+    \item \textbf{构建了完整的服务器日志异常检测流程。}
+    
+    本文将日志数据读取、日志清洗、日志解析、特征工程、模型训练和异常检测等环节整合为完整系统流程。系统各模块之间数据流向清晰，功能划分明确，能够较好地支持服务器日志异常检测任务。
+
+    \item \textbf{提高了日志数据的结构化表达能力。}\cite{jiang2008ael,he2017drain,zhu2019tools}
+    
+
+
+    \item \textbf{融合了日志统计特征和时序特征。}\cite{xu2009detecting,du2017deeplog}
+    
+
+
+    \item \textbf{将 Liquid 架构应用于服务器日志异常检测。}\cite{hasani2021liquid,hasani2022closedform}
+    
+
+
+    \item \textbf{实现了异常评分和检测结果输出。}
+    
+    系统能够对每个日志时间窗口输出异常评分，并根据设定阈值生成正常或异常标签。检测结果可以通过表格或图形方式进行展示，使运维人员能够更加直观地了解服务器运行状态和异常发生时间范围。
+\end{enumerate}
+
+
+\section{研究不足}
+
+虽然本文所设计的服务器异常检测系统能够完成日志数据处理和异常检测任务，并在实验中取得了一定效果，但仍然存在一些不足之处，主要体现在以下几个方面：
+
+\begin{enumerate}
+    \item \textbf{日志解析方法仍有改进空间。}
+    
+    本文主要采用正则表达式对日志中的动态参数进行识别和替换。当日志格式变化较大或动态参数类型较多时，人工设计的正则规则可能无法覆盖所有情况，从而影响日志模板提取的准确性。\cite{du2016spell,he2017drain,zhu2019tools}
+
+    \item \textbf{特征表示方式相对有限。}\cite{mikolov2013efficient,devlin2019bert,guo2021logbert,wu2023representation}
+    
+
+
+    \item \textbf{模型性能依赖参数设置。}
+    
+
+
+    \item \textbf{异常样本数量可能影响检测效果。}\cite{he2009imbalanced,saito2015precision}
+    
+
+
+    \item \textbf{系统实时性有待进一步验证。}
+    
+    本文主要针对离线日志数据进行实验分析，验证了系统在日志数据处理和异常检测方面的可行性。但在实际运维环境中，服务器日志通常以流式方式持续产生，因此系统在实时日志接入、在线特征更新和实时异常告警方面仍需进一步优化和测试。
+\end{enumerate}
+
+
+\section{未来展望}
+
+针对本文研究中存在的不足，后续工作可以从以下几个方面进行改进和扩展：
+
+\begin{enumerate}
+    \item \textbf{引入更加智能的日志解析方法。}
+    
+    后续研究可以引入 Drain、Spell 等日志解析算法，或者结合深度学习方法自动提取日志模板\cite{du2016spell,he2017drain,nedelkoski2020nulog,le2023logppt}，减少人工正则规则设计带来的局限性。通过更加智能的日志解析方法，可以提高系统对复杂日志格式和多样化日志内容的适应能力。
+
+    \item \textbf{增强日志语义特征表示。}\cite{mikolov2013efficient,devlin2019bert}
+    
+
+
+    \item \textbf{优化异常检测模型结构。}\cite{vaswani2017attention,guo2021logbert,xie2022loggd}
+    
+
+
+    \item \textbf{改进类别不平衡问题处理方法。}\cite{he2009imbalanced,chawla2002smote}\cite{scholkopf2001estimating,liu2008isolation,yang2021plelog}
+    
+
+
+    \item \textbf{提升系统实时检测能力。}
+    
+
+
+    \item \textbf{融合多源监控数据。}
+    
+
+
+    \item \textbf{增强系统可解释性。}
+    
+    在实际运维过程中，运维人员不仅需要知道系统是否异常，还需要了解异常产生的原因。后续可以对异常检测结果进行可解释性分析，例如定位导致异常评分升高的关键日志事件、异常时间窗口和异常模板类型，从而帮助运维人员更快地进行故障排查。
+\end{enumerate}
+
+
+\section{本章小结}
+
+本章对全文研究内容进行了总结，并对未来研究方向进行了展望。本文围绕服务器日志异常检测问题，设计并实现了一种基于日志分析和 Liquid 架构的异常检测系统。
+
+本文的研究表明，基于日志分析的异常检测方法能够有效利用服务器运行过程中产生的日志数据，识别服务器运行状态中的异常变化。虽然本文系统仍然存在日志解析方法依赖规则、特征表示方式有限、实时性有待提升等不足，但整体研究为服务器日志异常检测提供了一种可行思路。\cite{hasani2021liquid,hasani2022closedform}\cite{he2021survey,landauer2023survey}
+
