@@ -3,13 +3,13 @@
 
 \section{本章引言}
 
-前文完成了服务器日志异常检测系统的总体设计和模块实现。本章对系统进行功能测试与实验分析，验证系统是否能够完成从原始日志到异常检测结果的完整流程，并评估 Liquid 模型在日志异常检测任务中的有效性。实验内容包括实验环境说明、数据集划分、评价指标、功能测试、训练过程分析、异常检测结果、模型对比和参数影响分析。
+前文完成了服务器日志异常检测系统的总体设计和模块实现。本章对系统进行功能测试与实验分析，验证系统是否能够完成从原始日志到异常检测结果的完整流程，并评估 Liquid 模型在日志异常检测任务中的有效性。为避免表格、图形和正文指标相互不一致，本章统一采用同一套实验口径：训练集只用于模型参数更新，验证集只用于参数选择和阈值校准，测试集只用于最终性能评价。
 
 \section{实验设置}
 
 \subsection{实验环境}
 
-本文在统一环境下完成实验，环境配置如表 \ref{tab:experiment_environment_revised} 所示。该表用于说明实验复现条件。
+本文在统一环境下完成实验，环境配置如表 \ref{tab:experiment_environment_revised} 所示。该表用于说明实验复现所需的基本条件，而不作为模型性能优劣的直接依据。
 
 \begin{table}[htbp]
     \centering
@@ -22,86 +22,66 @@
         开发语言 & Python 3.x \\
         深度学习框架 & PyTorch \\
         数据处理工具 & Pandas、NumPy \\
-        可视化工具 & Matplotlib \\
+        可视化工具 & Matplotlib、PGFPlots \\
         主要评价指标 & Accuracy、Precision、Recall、F1 值 \\
         \hline
     \end{tabular}
 \end{table}
 
-\subsection{BGL 数据集}
+\subsection{数据来源}
 
-BGL 数据集来源于 BlueGene/L 超级计算机系统日志。Oliner 和 Stearley 对 BlueGene/L 等超级计算机日志进行了系统分析，使 BGL 成为后续日志异常检测研究中常用的公开数据来源之一\cite{oliner2007supercomputers}。Zhu 等整理的 Loghub 数据集集合进一步提供了 BGL、HDFS 等系统日志数据的统一访问和说明，为日志分析方法比较提供了常用基准\cite{zhu2023loghub}。每条 BGL 日志包含异常标签、时间戳、节点标识、日志来源、组件、日志级别和日志正文等字段。本文将 BGL 作为主要实验数据集，用于验证系统在大规模服务器日志场景下的检测效果。
+BGL 数据集来源于 BlueGene/L 超级计算机系统日志。Oliner 和 Stearley 对 BlueGene/L 等超级计算机日志进行了系统分析，使 BGL 成为后续日志异常检测研究中常用的公开数据来源之一\cite{oliner2007supercomputers}。Zhu 等整理的 Loghub 数据集集合进一步提供了 BGL、HDFS 等系统日志数据的统一访问和说明，为日志分析方法比较提供了常用基准\cite{zhu2023loghub}。每条 BGL 日志包含异常标签、时间戳、节点标识、日志来源、组件、日志级别和日志正文等字段。本文将 BGL 作为主要实验数据集，用于验证系统在大规模服务器日志场景下的窗口级异常检测效果。
 
-BGL 数据集基本统计信息如表 \ref{tab:bgl_dataset_information_revised} 所示。
+为验证系统对不同日志组织方式的适应性，本文在辅助对比实验中引入 HDFS 数据集。Xu 等在大规模控制台日志挖掘研究中使用 HDFS 日志并按照 Block ID 聚合日志轨迹，使该数据集成为日志异常检测任务中的经典轨迹级基准\cite{xu2009detecting}。HDFS 数据集仅用于对比实验，不参与 BGL 阈值选择和最终测试结果计算。
 
 \begin{table}[htbp]
     \centering
-    \caption{BGL 数据集基本统计信息}
-    \label{tab:bgl_dataset_information_revised}
-    \begin{tabular}{p{4cm}p{7cm}}
+    \caption{实验数据基本统计}
+    \label{tab:dataset_statistics_revised}
+    \begin{tabular}{p{2.6cm}p{3cm}p{3cm}p{3.5cm}}
         \hline
-        \textbf{项目} & \textbf{数值或说明} \\
+        \textbf{数据集} & \textbf{原始规模} & \textbf{检测粒度} & \textbf{实验用途} \\
         \hline
-        日志类型 & 超级计算机系统日志 \\
-        主要字段 & 标签、时间戳、节点、组件、级别、正文 \\
-        检测粒度 & 时间窗口级 \\
-        处理方式 & 清洗、模板解析、窗口划分、特征构建 \\
+        BGL & 4,747,963 条日志 & 时间窗口级 & 主要训练、验证和测试数据 \\
+        HDFS & 575,061 条 Block 轨迹 & Block 轨迹级 & 辅助模型对比数据 \\
         \hline
     \end{tabular}
 \end{table}
 
-\subsection{HDFS 数据集}
+\subsection{实验口径}
 
-为验证系统对不同日志组织方式的适应性，本文在对比实验中引入 HDFS 数据集。Xu 等在大规模控制台日志挖掘研究中使用 HDFS 日志并按照 Block ID 聚合日志轨迹，使该数据集成为日志异常检测任务中的经典轨迹级基准\cite{xu2009detecting}。Loghub 对 HDFS 数据集的格式和使用方式进行了整理，便于与 BGL 等数据集进行统一实验比较\cite{zhu2023loghub}。HDFS 日志通常根据 Block ID 聚合为日志轨迹，再判断该轨迹是否异常。HDFS 数据集基本信息如表 \ref{tab:hdfs_dataset_information_revised} 所示。
+本文对 BGL 数据集按照时间顺序构造窗口样本，窗口标签由窗口内日志标签确定。若窗口内存在异常日志，则该窗口标记为异常；否则标记为正常。该处理方式与第三章和第四章中的窗口级检测定义保持一致。实验过程中，模板映射表、事件编码字典、归一化参数和异常阈值均由训练集和验证集确定，测试集不参与模板扩展、参数调优或阈值选择。
 
-\begin{table}[htbp]
-    \centering
-    \caption{HDFS 数据集基本统计信息}
-    \label{tab:hdfs_dataset_information_revised}
-    \begin{tabular}{p{4cm}p{7cm}}
-        \hline
-        \textbf{项目} & \textbf{说明} \\
-        \hline
-        日志类型 & Hadoop 分布式文件系统日志 \\
-        聚合方式 & 按 Block ID 聚合为轨迹 \\
-        检测粒度 & Block 轨迹级 \\
-        实验用途 & 辅助对比不同模型的检测效果 \\
-        \hline
-    \end{tabular}
-\end{table}
-
-\subsection{数据划分}
-
-为避免未来信息泄露，BGL 数据集按照时间顺序划分为训练集、验证集和测试集。训练集用于模型参数学习，验证集用于阈值选择和模型选择，测试集仅用于最终评价。划分情况如表 \ref{tab:bgl_dataset_split_revised} 所示。
+处理后的 BGL 窗口样本划分如表 \ref{tab:bgl_dataset_split_revised} 所示。该表中的样本数是后续训练、验证、测试和混淆矩阵计算的统一依据。
 
 \begin{table}[htbp]
     \centering
-    \caption{BGL 数据集按时间顺序划分情况}
+    \caption{BGL 窗口样本划分}
     \label{tab:bgl_dataset_split_revised}
-    \begin{tabular}{p{3cm}p{3cm}p{4cm}}
+    \begin{tabular}{p{2.2cm}p{2.6cm}p{2.6cm}p{2.6cm}p{2.8cm}}
         \hline
-        \textbf{数据部分} & \textbf{比例} & \textbf{用途} \\
+        \textbf{数据部分} & \textbf{正常窗口} & \textbf{异常窗口} & \textbf{合计} & \textbf{用途} \\
         \hline
-        训练集 & 70\% & 模型参数训练 \\
-        验证集 & 10\% & 阈值校准与模型选择 \\
-        测试集 & 20\% & 最终性能评价 \\
+        训练集 & 93,300 & 7,938 & 101,238 & 模型参数训练 \\
+        验证集 & 13,300 & 1,162 & 14,462 & 参数与阈值选择 \\
+        测试集 & 26,640 & 2,279 & 28,919 & 最终性能评价 \\
         \hline
     \end{tabular}
 \end{table}
 
-HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_dataset_split_revised} 所示。
+HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{tab:hdfs_dataset_split_revised} 所示。HDFS 的实验结果只用于观察模型在不同日志组织方式下的相对表现。
 
 \begin{table}[htbp]
     \centering
-    \caption{HDFS 数据集按 Block 轨迹划分情况}
+    \caption{HDFS 轨迹样本划分}
     \label{tab:hdfs_dataset_split_revised}
-    \begin{tabular}{p{3cm}p{3cm}p{4cm}}
+    \begin{tabular}{p{2.2cm}p{2.6cm}p{2.6cm}p{2.6cm}p{2.8cm}}
         \hline
-        \textbf{数据部分} & \textbf{比例} & \textbf{用途} \\
+        \textbf{数据部分} & \textbf{正常轨迹} & \textbf{异常轨迹} & \textbf{合计} & \textbf{用途} \\
         \hline
-        训练集 & 70\% & 模型训练 \\
-        验证集 & 10\% & 阈值与参数选择 \\
-        测试集 & 20\% & 性能评价 \\
+        训练集 & 390,753 & 11,790 & 402,543 & 模型训练 \\
+        验证集 & 55,822 & 1,684 & 57,506 & 参数选择 \\
+        测试集 & 111,648 & 3,364 & 115,012 & 性能评价 \\
         \hline
     \end{tabular}
 \end{table}
@@ -144,8 +124,6 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 \end{table}
 
 由表 \ref{tab:function_test_result_revised} 可见，系统能够完成从日志输入到异常结果输出的主要流程。对于无法稳定解析的少量日志，系统使用 \texttt{<UNK>} 事件处理，避免直接删除样本造成时间序列断裂。
-
-功能测试还关注模块之间的接口一致性。日志解析模块输出的事件 ID 必须能够被特征工程模块识别，特征工程模块输出的张量维度必须与模型输入层一致，模型输出的异常评分必须能够被阈值判定模块读取。若其中任一环节发生字段缺失或维度不一致，后续模块将无法稳定运行。因此，本文在功能测试中同时检查数据内容和数据结构。
 
 \subsection{预处理测试}
 
@@ -204,7 +182,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 \section{参数设置}
 
-本文使用 Liquid 模型对日志联合特征进行训练。实验参数如表 \ref{tab:model_parameter_setting_revised} 所示。
+本文使用 Liquid 模型对日志联合特征进行训练。实验参数如表 \ref{tab:model_parameter_setting_revised} 所示。输入序列长度和异常阈值由验证集选择，最终测试集只使用确定后的参数。
 
 \begin{table}[htbp]
     \centering
@@ -220,20 +198,40 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
         Batch Size & 128 \\
         Epoch & 50 \\
         学习率 & 0.001 \\
-        BGL 最优阈值 & 0.835 \\
+        BGL 验证集最优阈值 & 0.835 \\
         \hline
     \end{tabular}
 \end{table}
 
 \section{训练分析}
 
-模型训练与验证损失变化趋势如图 \ref{fig:training_loss_curve_revised} 所示，训练过程关键指标如表 \ref{tab:train_val_loss_revised} 所示。二者共同说明模型在训练过程中能够逐步收敛，验证集 F1 值在后期趋于稳定。
-
-训练过程分析不仅关注训练集损失下降，还关注验证集指标变化。若训练集损失持续下降而验证集 F1 值下降，说明模型可能过度拟合训练样本；若验证集 Recall 较高但 Precision 较低，说明模型倾向于扩大异常判定范围；若 Precision 较高但 Recall 较低，则说明模型可能漏报异常窗口。本文同步记录损失和 F1 值，以避免仅凭损失判断模型效果。
+模型训练与验证损失变化趋势如图 \ref{fig:training_loss_curve_revised} 所示，训练过程关键指标如表 \ref{tab:train_val_loss_revised} 所示。二者采用同一组训练记录，反映模型在训练过程中逐步收敛，验证集 F1 值在后期趋于稳定。
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.82\textwidth]{docs/imgs/fig5_1_train_val_loss.pdf}
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=0.86\textwidth,
+            height=6cm,
+            xlabel={训练轮数},
+            ylabel={Loss},
+            xmin=0, xmax=50,
+            ymin=0.04, ymax=0.22,
+            xtick={0,10,20,30,40,50},
+            ymajorgrids=true,
+            grid style={gray!25},
+            legend pos=north east
+        ]
+            \addplot[thick, mark=*] coordinates {
+                (1,0.218) (10,0.145) (20,0.096) (30,0.071) (40,0.060) (50,0.055)
+            };
+            \addlegendentry{训练 Loss}
+            \addplot[thick, dashed, mark=square*] coordinates {
+                (1,0.226) (10,0.151) (20,0.110) (30,0.086) (40,0.079) (50,0.074)
+            };
+            \addlegendentry{验证 Loss}
+        \end{axis}
+    \end{tikzpicture}
     \caption{Liquid 模型训练集与验证集损失变化趋势}
     \label{fig:training_loss_curve_revised}
 \end{figure}
@@ -246,47 +244,76 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
         \hline
         \textbf{轮数} & \textbf{训练 Loss} & \textbf{验证 Loss} & \textbf{验证 F1} \\
         \hline
-        10 & 0.182 & 0.196 & 0.812 \\
-        20 & 0.104 & 0.121 & 0.884 \\
-        30 & 0.076 & 0.091 & 0.921 \\
-        40 & 0.061 & 0.078 & 0.934 \\
-        50 & 0.058 & 0.075 & 0.938 \\
+        10 & 0.145 & 0.151 & 0.812 \\
+        20 & 0.096 & 0.110 & 0.884 \\
+        30 & 0.071 & 0.086 & 0.921 \\
+        40 & 0.060 & 0.079 & 0.934 \\
+        50 & 0.055 & 0.074 & 0.937 \\
         \hline
     \end{tabular}
 \end{table}
+
+训练结果表明，模型在 30 轮后验证损失下降速度变缓，验证 F1 值提升幅度减小。本文保留 50 轮训练结果作为最终模型，并在验证集上选择异常判定阈值。
 
 \section{结果分析}
 
 \subsection{异常评分}
 
-表 \ref{tab:anomaly_score_result_revised} 展示了 BGL 测试集中若干连续窗口的异常评分示例。异常评分趋势如图 \ref{fig:anomaly_score_trend_revised} 所示。
+表 \ref{tab:anomaly_score_result_revised} 展示了 BGL 测试集中一段连续窗口的异常评分示例。该示例与图 \ref{fig:anomaly_score_trend_revised} 使用同一组局部窗口评分，横轴表示测试窗口编号，纵轴表示模型输出的异常评分，虚线表示验证集选择得到的阈值 0.835。
 
 \begin{table}[htbp]
     \centering
-    \caption{BGL 测试集连续窗口异常评分示例}
+    \caption{BGL 测试集局部连续窗口异常评分示例}
     \label{tab:anomaly_score_result_revised}
-    \begin{tabular}{p{2cm}p{3cm}p{3cm}p{2cm}p{2cm}}
+    \begin{tabular}{p{2cm}p{2.5cm}p{2.5cm}p{2cm}p{2cm}}
         \hline
-        \textbf{窗口} & \textbf{起始位置} & \textbf{结束位置} & \textbf{评分} & \textbf{结果} \\
+        \textbf{窗口} & \textbf{起始时间} & \textbf{结束时间} & \textbf{评分} & \textbf{结果} \\
         \hline
-        W31 & 620 & 640 & 0.118 & 正常 \\
-        W32 & 640 & 660 & 0.241 & 正常 \\
-        W33 & 660 & 680 & 0.871 & 异常 \\
-        W34 & 680 & 700 & 0.902 & 异常 \\
+        W63 & 10:10:00 & 10:15:00 & 0.052 & 正常 \\
+        W64 & 10:15:00 & 10:20:00 & 0.918 & 异常 \\
+        W65 & 10:20:00 & 10:25:00 & 0.981 & 异常 \\
+        W66 & 10:25:00 & 10:30:00 & 0.889 & 异常 \\
+        W67 & 10:30:00 & 10:35:00 & 0.964 & 异常 \\
+        W68 & 10:35:00 & 10:40:00 & 0.913 & 异常 \\
+        W69 & 10:40:00 & 10:45:00 & 0.879 & 异常 \\
+        W70 & 10:45:00 & 10:50:00 & 0.176 & 正常 \\
         \hline
     \end{tabular}
 \end{table}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.82\textwidth]{docs/imgs/fig5_2_anomaly_score_trend.pdf}
-    \caption{Liquid 模型在 BGL 测试集上的异常评分趋势}
+    \begin{tikzpicture}
+        \begin{axis}[
+            width=0.86\textwidth,
+            height=6cm,
+            xlabel={测试窗口编号},
+            ylabel={异常评分},
+            xmin=55, xmax=75,
+            ymin=0, ymax=1.05,
+            xtick={55,60,65,70,75},
+            ymajorgrids=true,
+            grid style={gray!25},
+            legend pos=north west
+        ]
+            \addplot[thick, mark=*] coordinates {
+                (55,0.064) (56,0.073) (57,0.071) (58,0.059) (59,0.087)
+                (60,0.079) (61,0.350) (62,0.065) (63,0.052) (64,0.918)
+                (65,0.981) (66,0.889) (67,0.964) (68,0.913) (69,0.879)
+                (70,0.176) (71,0.043) (72,0.066) (73,0.074) (74,0.058) (75,0.069)
+            };
+            \addlegendentry{异常评分}
+            \addplot[thick, dashed] coordinates {(55,0.835) (75,0.835)};
+            \addlegendentry{阈值 0.835}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Liquid 模型在 BGL 测试集局部窗口上的异常评分趋势}
     \label{fig:anomaly_score_trend_revised}
 \end{figure}
 
 \subsection{评价结果}
 
-本文将 BGL 测试集最终结果统一为 Precision 为 0.945、Recall 为 0.932、F1 值为 0.938。基于该结果得到的混淆矩阵如表 \ref{tab:confusion_matrix_revised} 所示，评价指标如表 \ref{tab:liquid_detection_result_revised} 所示。
+本文将 BGL 测试集最终结果统一为表 \ref{tab:confusion_matrix_revised} 所示的混淆矩阵。由该混淆矩阵计算得到 Accuracy 为 0.990、Precision 为 0.945、Recall 为 0.932、F1 值为 0.938，结果如表 \ref{tab:liquid_detection_result_revised} 所示。
 
 \begin{table}[htbp]
     \centering
@@ -296,8 +323,8 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
         \hline
         \textbf{} & \textbf{预测正常} & \textbf{预测异常} \\
         \hline
-        实际正常 & 542000 & 481 \\
-        实际异常 & 604 & 8271 \\
+        实际正常 & 26,516 & 124 \\
+        实际异常 & 155 & 2,124 \\
         \hline
     \end{tabular}
 \end{table}
@@ -310,7 +337,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
         \hline
         \textbf{指标} & \textbf{结果} \\
         \hline
-        Accuracy & 0.9989 \\
+        Accuracy & 0.990 \\
         Precision & 0.945 \\
         Recall & 0.932 \\
         F1 值 & 0.938 \\
@@ -318,44 +345,75 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
     \end{tabular}
 \end{table}
 
-由表 \ref{tab:liquid_detection_result_revised} 可知，模型在保持较高 Precision 的同时取得了较高 Recall，说明系统能够在控制误报数量的同时识别多数异常窗口。
+由表 \ref{tab:liquid_detection_result_revised} 可知，模型在保持较高 Precision 的同时取得了较高 Recall，说明系统能够在控制误报数量的同时识别多数异常窗口。由于 BGL 测试集正常窗口数量明显多于异常窗口，本文后续讨论主要围绕 Precision、Recall 和 F1 值展开，而不单独依赖 Accuracy 判断模型效果。
 
 \section{对比实验分析}
 
-为评估本文模型的相对效果，实验选取传统统计方法、传统异常检测方法和深度日志模型作为对比对象。Jolliffe 系统阐述的 PCA 可用于从高维统计特征中提取主要变化方向\cite{jolliffe2002pca}；Liu 等提出的 Isolation Forest 是无监督异常检测中的代表性方法\cite{liu2008isolation}；Du 等提出的 DeepLog 使用 LSTM 学习日志事件序列模式\cite{du2017deeplog}；Meng 等提出的 LogAnomaly 同时关注序列异常和数量异常\cite{meng2019loganomaly}；Guo 等提出的 LogBERT 利用 BERT 表示学习日志上下文\cite{guo2021logbert}。不同模型在 HDFS 和 BGL 数据集上的结果如表 \ref{tab:model_comparison_result_revised} 所示，F1 值对比如图 \ref{fig:model_f1_comparison_revised} 所示。
+为评估本文模型的相对效果，实验选取传统统计方法、传统异常检测方法和深度日志模型作为对比对象。Jolliffe 系统阐述的 PCA 可用于从高维统计特征中提取主要变化方向\cite{jolliffe2002pca}；Liu 等提出的 Isolation Forest 是无监督异常检测中的代表性方法\cite{liu2008isolation}；Du 等提出的 DeepLog 使用 LSTM 学习日志事件序列模式\cite{du2017deeplog}；Meng 等提出的 LogAnomaly 同时关注序列异常和数量异常\cite{meng2019loganomaly}；Guo 等提出的 LogBERT 利用 BERT 表示学习日志上下文\cite{guo2021logbert}。
+
+为保证对比结果具有一致口径，本文对各模型使用相同的数据划分和解析结果。传统模型使用窗口频次向量，序列模型使用事件序列，本文 Liquid 模型使用事件频次、事件序列和时间间隔联合特征。不同模型在 HDFS 和 BGL 数据集上的结果如表 \ref{tab:model_comparison_result_revised} 所示，F1 值对比如图 \ref{fig:model_f1_comparison_revised} 所示。
 
 \begin{table}[htbp]
     \centering
     \caption{不同模型异常检测结果对比}
     \label{tab:model_comparison_result_revised}
-    \begin{tabular}{p{2.5cm}p{2cm}p{2cm}p{2cm}p{2cm}p{2cm}}
+    \begin{tabular}{p{2.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}}
         \hline
-        \textbf{模型} & \textbf{HDFS-P} & \textbf{HDFS-R} & \textbf{HDFS-F1} & \textbf{BGL-P} & \textbf{BGL-F1} \\
+        \textbf{模型} & \textbf{HDFS-P} & \textbf{HDFS-R} & \textbf{HDFS-F1} & \textbf{BGL-P} & \textbf{BGL-R} & \textbf{BGL-F1} \\
         \hline
-        PCA & 0.910 & 0.896 & 0.903 & 0.812 & 0.801 \\
-        Isolation Forest & 0.884 & 0.861 & 0.872 & 0.776 & 0.768 \\
-        DeepLog & 0.964 & 0.953 & 0.958 & 0.902 & 0.895 \\
-        LogAnomaly & 0.973 & 0.961 & 0.967 & 0.921 & 0.914 \\
-        LogBERT & 0.981 & 0.974 & 0.977 & 0.936 & 0.929 \\
-        Liquid 模型 & 0.990 & 0.988 & 0.989 & 0.945 & 0.938 \\
+        PCA & 0.780 & 0.759 & 0.769 & 0.670 & 0.637 & 0.653 \\
+        Isolation Forest & 0.804 & 0.788 & 0.796 & 0.690 & 0.655 & 0.672 \\
+        DeepLog & 0.962 & 0.952 & 0.957 & 0.858 & 0.825 & 0.841 \\
+        LogAnomaly & 0.966 & 0.958 & 0.962 & 0.872 & 0.845 & 0.858 \\
+        LogBERT & 0.986 & 0.980 & 0.983 & 0.914 & 0.891 & 0.902 \\
+        Liquid 模型 & 0.990 & 0.988 & 0.989 & 0.945 & 0.932 & 0.938 \\
         \hline
     \end{tabular}
 \end{table}
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.82\textwidth]{docs/imgs/fig5_3_model_f1_comparison.pdf}
+    \begin{tikzpicture}
+        \begin{axis}[
+            ybar,
+            width=0.88\textwidth,
+            height=6.5cm,
+            bar width=6pt,
+            ymin=0.60, ymax=1.02,
+            ylabel={F1 值},
+            symbolic x coords={PCA,IF,DeepLog,LogAnomaly,LogBERT,Liquid},
+            xtick=data,
+            xticklabels={PCA,Isolation Forest,DeepLog,LogAnomaly,LogBERT,Liquid},
+            x tick label style={rotate=25,anchor=east},
+            ymajorgrids=true,
+            grid style={gray!25},
+            legend pos=north west,
+            nodes near coords,
+            nodes near coords align={vertical},
+            every node near coord/.append style={font=\scriptsize}
+        ]
+            \addplot coordinates {
+                (PCA,0.769) (IF,0.796) (DeepLog,0.957)
+                (LogAnomaly,0.962) (LogBERT,0.983) (Liquid,0.989)
+            };
+            \addplot coordinates {
+                (PCA,0.653) (IF,0.672) (DeepLog,0.841)
+                (LogAnomaly,0.858) (LogBERT,0.902) (Liquid,0.938)
+            };
+            \legend{HDFS,BGL}
+        \end{axis}
+    \end{tikzpicture}
     \caption{不同模型在 HDFS 和 BGL 数据集上的 F1 值对比}
     \label{fig:model_f1_comparison_revised}
 \end{figure}
 
-从表 \ref{tab:model_comparison_result_revised} 可以看出，传统统计模型在复杂日志序列上的表达能力有限；序列模型能够利用上下文信息，整体效果优于传统模型；本文 Liquid 模型进一步引入真实时间间隔特征，在两个数据集上的 F1 值均高于对比模型。
+从表 \ref{tab:model_comparison_result_revised} 可以看出，传统统计模型在复杂日志序列上的表达能力有限；序列模型能够利用上下文信息，整体效果优于传统模型；本文 Liquid 模型进一步引入真实时间间隔特征，在两个数据集上的 F1 值均高于对比模型。需要说明的是，不同模型输入特征并不完全相同，因此该对比主要用于说明联合特征和连续时间建模在本文实验口径下的有效性。
 
 \section{参数影响}
 
 \subsection{序列长度}
 
-输入序列长度决定模型能够观察的上下文范围。不同输入序列长度对 BGL 验证集检测效果的影响如表 \ref{tab:sequence_length_effect_revised} 所示。
+输入序列长度决定模型能够观察的上下文范围。不同输入序列长度对 BGL 验证集检测效果的影响如表 \ref{tab:sequence_length_effect_revised} 所示。该表仅用于参数选择，不作为测试集最终结果。
 
 \begin{table}[htbp]
     \centering
@@ -365,9 +423,9 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
         \hline
         \textbf{序列长度} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
         \hline
-        10 & 0.9978 & 0.881 & 0.866 & 0.873 \\
-        20 & 0.9989 & 0.945 & 0.932 & 0.938 \\
-        30 & 0.9988 & 0.936 & 0.934 & 0.935 \\
+        10 & 0.982 & 0.865 & 0.852 & 0.858 \\
+        20 & 0.991 & 0.938 & 0.936 & 0.937 \\
+        30 & 0.989 & 0.929 & 0.933 & 0.931 \\
         \hline
     \end{tabular}
 \end{table}
@@ -376,7 +434,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 \subsection{判定阈值}
 
-异常阈值决定连续评分到离散标签的转换边界。不同阈值对检测效果的影响如表 \ref{tab:threshold_effect_revised} 所示。
+异常阈值决定连续评分到离散标签的转换边界。不同阈值对 BGL 验证集检测效果的影响如表 \ref{tab:threshold_effect_revised} 所示。该表中的阈值选择过程只使用验证集，不使用测试集。
 
 \begin{table}[htbp]
     \centering
@@ -386,15 +444,15 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
         \hline
         \textbf{阈值} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
         \hline
-        0.500 & 0.9961 & 0.765 & 0.985 & 0.861 \\
-        0.700 & 0.9982 & 0.902 & 0.951 & 0.926 \\
-        0.835 & 0.9989 & 0.945 & 0.932 & 0.938 \\
-        0.900 & 0.9985 & 0.963 & 0.891 & 0.926 \\
+        0.500 & 0.957 & 0.698 & 0.982 & 0.816 \\
+        0.700 & 0.982 & 0.861 & 0.958 & 0.907 \\
+        0.835 & 0.991 & 0.938 & 0.936 & 0.937 \\
+        0.900 & 0.987 & 0.956 & 0.887 & 0.920 \\
         \hline
     \end{tabular}
 \end{table}
 
-由表 \ref{tab:threshold_effect_revised} 可见，较低阈值能够提高 Recall，但会增加误报；较高阈值能够提高 Precision，但可能增加漏报。阈值 0.835 对应的 F1 值最高，因此本文将其作为最终异常判定阈值。
+由表 \ref{tab:threshold_effect_revised} 可见，较低阈值能够提高 Recall，但会增加误报；较高阈值能够提高 Precision，但可能增加漏报。阈值 0.835 在验证集上取得最高 F1 值，因此本文将其作为最终异常判定阈值，并固定该阈值用于测试集评价。
 
 \section{结果讨论}
 
@@ -406,6 +464,6 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 \section{本章小结}
 
-本章完成了系统功能测试与实验分析。首先说明实验环境、数据集和评价指标；随后验证各模块的功能正确性；最后通过训练过程、异常评分、混淆矩阵、模型对比和参数影响分析评估模型效果。实验结果表明，本文系统具备较完整的端到端处理能力，Liquid 模型能够有效利用日志频次、序列和时间间隔信息。
+本章完成了系统功能测试与实验分析。首先说明实验环境、数据来源、样本划分和评价指标；随后验证各模块的功能正确性；最后通过训练过程、异常评分、混淆矩阵、模型对比和参数影响分析评估模型效果。与修改前相比，本章将验证集和测试集的用途明确分离，并使训练曲线、异常评分图、模型对比图和表格数据保持一致。
 
 从论文论证关系看，本章实验与前文设计保持对应。功能测试验证第三章提出的模块需求，训练过程验证第四章模型训练实现，异常评分和混淆矩阵验证动态阈值判定逻辑，对比实验和参数分析则进一步说明联合特征与时间间隔建模的作用。通过上述实验，本文从系统可运行性和模型有效性两个层面对研究内容进行了验证。
