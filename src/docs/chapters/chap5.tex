@@ -30,7 +30,7 @@
 
 \subsection{BGL 数据集}
 
-BGL 数据集来源于 BlueGene/L 超级计算机系统日志，是日志异常检测研究中常用的数据集。每条日志包含异常标签、时间戳、节点标识、日志来源、组件、日志级别和日志正文等字段。本文将 BGL 作为主要实验数据集，用于验证系统在大规模服务器日志场景下的检测效果\cite{oliner2007supercomputers,zhu2023loghub}。
+BGL 数据集来源于 BlueGene/L 超级计算机系统日志。Oliner 和 Stearley 对 BlueGene/L 等超级计算机日志进行了系统分析，使 BGL 成为后续日志异常检测研究中常用的公开数据来源之一\cite{oliner2007supercomputers}。Zhu 等整理的 Loghub 数据集集合进一步提供了 BGL、HDFS 等系统日志数据的统一访问和说明，为日志分析方法比较提供了常用基准\cite{zhu2023loghub}。每条 BGL 日志包含异常标签、时间戳、节点标识、日志来源、组件、日志级别和日志正文等字段。本文将 BGL 作为主要实验数据集，用于验证系统在大规模服务器日志场景下的检测效果。
 
 BGL 数据集基本统计信息如表 \ref{tab:bgl_dataset_information_revised} 所示。
 
@@ -52,7 +52,7 @@ BGL 数据集基本统计信息如表 \ref{tab:bgl_dataset_information_revised} 
 
 \subsection{HDFS 数据集}
 
-为验证系统对不同日志组织方式的适应性，本文在对比实验中引入 HDFS 数据集。HDFS 日志通常根据 Block ID 聚合为日志轨迹，再判断该轨迹是否异常。HDFS 数据集基本信息如表 \ref{tab:hdfs_dataset_information_revised} 所示\cite{xu2009detecting,zhu2023loghub}。
+为验证系统对不同日志组织方式的适应性，本文在对比实验中引入 HDFS 数据集。Xu 等在大规模控制台日志挖掘研究中使用 HDFS 日志并按照 Block ID 聚合日志轨迹，使该数据集成为日志异常检测任务中的经典轨迹级基准\cite{xu2009detecting}。Loghub 对 HDFS 数据集的格式和使用方式进行了整理，便于与 BGL 等数据集进行统一实验比较\cite{zhu2023loghub}。HDFS 日志通常根据 Block ID 聚合为日志轨迹，再判断该轨迹是否异常。HDFS 数据集基本信息如表 \ref{tab:hdfs_dataset_information_revised} 所示。
 
 \begin{table}[htbp]
     \centering
@@ -322,7 +322,7 @@ HDFS 数据集按照 Block 轨迹划分，划分情况如表 \ref{tab:hdfs_datas
 
 \section{对比实验分析}
 
-为评估本文模型的相对效果，实验选取 PCA、Isolation Forest、DeepLog、LogAnomaly 和 LogBERT 作为对比模型。不同模型在 HDFS 和 BGL 数据集上的结果如表 \ref{tab:model_comparison_result_revised} 所示，F1 值对比如图 \ref{fig:model_f1_comparison_revised} 所示\cite{jolliffe2002pca,liu2008isolation,du2017deeplog,meng2019loganomaly,guo2021logbert}。
+为评估本文模型的相对效果，实验选取传统统计方法、传统异常检测方法和深度日志模型作为对比对象。Jolliffe 系统阐述的 PCA 可用于从高维统计特征中提取主要变化方向\cite{jolliffe2002pca}；Liu 等提出的 Isolation Forest 是无监督异常检测中的代表性方法\cite{liu2008isolation}；Du 等提出的 DeepLog 使用 LSTM 学习日志事件序列模式\cite{du2017deeplog}；Meng 等提出的 LogAnomaly 同时关注序列异常和数量异常\cite{meng2019loganomaly}；Guo 等提出的 LogBERT 利用 BERT 表示学习日志上下文\cite{guo2021logbert}。不同模型在 HDFS 和 BGL 数据集上的结果如表 \ref{tab:model_comparison_result_revised} 所示，F1 值对比如图 \ref{fig:model_f1_comparison_revised} 所示。
 
 \begin{table}[htbp]
     \centering
