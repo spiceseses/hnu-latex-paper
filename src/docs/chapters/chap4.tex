@@ -54,33 +54,20 @@
 
 \subsection{日志读取}
 
-日志读取模块负责将原始日志转化为结构化记录。以 BGL 日志为例，系统读取每条日志后抽取标签、时间、节点、组件、日志级别和正文等字段。读取流程如算法 \ref{alg:log_reading_revised} 所示。
+日志读取模块负责将原始日志转化为结构化记录。以 BGL 日志为例，系统读取每条日志后抽取标签、时间、节点、组件、日志级别和正文等字段。读取流程包括以下步骤。
 
 在实现过程中，日志读取模块不对异常标签进行重新定义，也不根据日志级别提前删除样本。这样处理的原因是，日志级别和异常标签并不完全等价，若在读取阶段根据级别过滤样本，可能改变原始数据分布。本文将标签处理延后到窗口构造阶段，使窗口标签由窗口内真实标签统一生成。
 
-\begin{algorithm}[htbp]
-    \caption{日志数据读取流程}
-    \label{alg:log_reading_revised}
-    \begin{algorithmic}[1]
-        \REQUIRE 原始日志文件 $F$
-        \ENSURE 结构化日志集合 $R$
-        \STATE 初始化空集合 $R$
-        \FOR{文件中的每一行日志}
-            \STATE 按预设格式拆分字段
-            \STATE 提取时间戳、节点、级别、组件、正文和标签
-            \STATE 将字段封装为结构化记录并加入 $R$
-        \ENDFOR
-        \STATE 按时间戳对 $R$ 排序
-        \RETURN $R$
-    \end{algorithmic}
-\end{algorithm}
+\begin{enumerate}
+    \item 初始化结构化日志集合 $R$，逐行读取原始日志文件 $F$。
+    \item 按预设格式拆分字段，提取时间戳、节点、级别、组件、正文和标签。
+    \item 将字段封装为结构化记录并加入 $R$。
+    \item 读取结束后按时间戳对 $R$ 排序，得到后续处理所需的结构化日志集合。
+\end{enumerate}
 
-读取结果示例如表 \ref{tab:log_reading_result_revised} 所示。该表只展示核心字段，便于说明后续处理的数据来源。
+读取结果示例如下。该示例只展示核心字段，便于说明后续处理的数据来源。
 
-\begin{table}[htbp]
-    \centering
-    \caption{日志数据读取结果示例}
-    \label{tab:log_reading_result_revised}
+\begin{center}
     \begin{tabular}{p{2cm}p{2.5cm}p{2cm}p{5cm}}
         \hline
         \textbf{标签} & \textbf{节点} & \textbf{级别} & \textbf{日志正文} \\
@@ -89,7 +76,7 @@
         1 & node-03 & ERROR & failed to connect to 192.168.1.10:8080 \\
         \hline
     \end{tabular}
-\end{table}
+\end{center}
 
 \subsection{日志清洗}
 
@@ -172,28 +159,7 @@
     \end{tabular}
 \end{table}
 
-日志解析流程如算法 \ref{alg:log_parse_revised} 所示。
-
-\begin{algorithm}[htbp]
-    \caption{日志解析与事件 ID 生成流程}
-    \label{alg:log_parse_revised}
-    \begin{algorithmic}[1]
-        \REQUIRE 清洗日志集合 $L$
-        \ENSURE 事件序列 $E$，模板映射表 $Map$
-        \STATE 初始化模板映射表 $Map$
-        \FOR{每条日志 $l_i$}
-            \STATE 使用正则规则替换动态参数
-            \STATE 得到候选模板 $T_i$
-            \IF{$T_i$ 已存在于 $Map$}
-                \STATE 读取对应事件 ID
-            \ELSE
-                \STATE 为 $T_i$ 分配新的事件 ID
-            \ENDIF
-            \STATE 将事件 ID 加入事件序列 $E$
-        \ENDFOR
-        \RETURN $E$，$Map$
-    \end{algorithmic}
-\end{algorithm}
+日志解析与事件 ID 生成流程可以概括为以下步骤。首先初始化模板映射表 $Map$；随后遍历清洗日志集合 $L$，使用正则规则替换动态参数，得到候选模板 $T_i$；若 $T_i$ 已存在于 $Map$，则读取对应事件 ID，否则为其分配新的事件 ID；最后将事件 ID 按时间顺序加入事件序列 $E$，并输出事件序列与模板映射表。该流程与训练阶段的模板稳定性要求一致，能够避免检测阶段重新扩展事件空间。
 
 \section{特征实现}
 
@@ -466,14 +432,7 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
     \end{tabular}
 \end{table}
 
-异常评分趋势可通过图 \ref{fig:system_anomaly_score_trend_revised} 展示。图中横轴表示窗口编号，纵轴表示异常评分，虚线表示阈值。
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.82\textwidth]{docs/imgs/fig5_2_anomaly_score_trend.pdf}
-    \caption{异常评分变化趋势示意图}
-    \label{fig:system_anomaly_score_trend_revised}
-\end{figure}
+本章的运行展示侧重说明系统输出字段和结果组织方式，不重复展示实验趋势图。异常评分的连续变化属于模型效果分析内容，将在第五章结合 BGL 测试集结果进行讨论，具体见图 \ref{fig:anomaly_score_trend_revised}。这样的安排能够区分系统实现展示与实验结果分析，避免同一图件在不同章节中表达不同含义。
 
 \section{本章小结}
 
