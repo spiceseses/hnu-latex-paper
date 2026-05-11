@@ -1,0 +1,174 @@
+key,value,description
+dataset.bgl.raw.logs,"4,747,963",BGL raw log entries
+dataset.hdfs.raw.blocks,"575,061",HDFS block traces
+split.bgl.train.normal,"93,300",BGL training normal windows
+split.bgl.train.anomaly,"7,938",BGL training anomaly windows
+split.bgl.train.total,"101,238",BGL training total windows
+split.bgl.validation.normal,"13,300",BGL validation normal windows
+split.bgl.validation.anomaly,"1,162",BGL validation anomaly windows
+split.bgl.validation.total,"14,462",BGL validation total windows
+split.bgl.test.normal,"26,640",BGL test normal windows
+split.bgl.test.anomaly,"2,279",BGL test anomaly windows
+split.bgl.test.total,"28,919",BGL test total windows
+split.hdfs.train.normal,"390,753",HDFS training normal traces
+split.hdfs.train.anomaly,"11,790",HDFS training anomaly traces
+split.hdfs.train.total,"402,543",HDFS training total traces
+split.hdfs.validation.normal,"55,822",HDFS validation normal traces
+split.hdfs.validation.anomaly,"1,684",HDFS validation anomaly traces
+split.hdfs.validation.total,"57,506",HDFS validation total traces
+split.hdfs.test.normal,"111,648",HDFS test normal traces
+split.hdfs.test.anomaly,"3,364",HDFS test anomaly traces
+split.hdfs.test.total,"115,012",HDFS test total traces
+model.sequence_length,20,Liquid model input sequence length
+model.embedding_dim,32,Liquid model embedding dimension
+model.hidden_dim,64,Liquid model hidden dimension
+model.batch_size,128,Liquid model batch size
+model.epoch,50,Liquid model training epochs
+model.learning_rate,0.001,Liquid model learning rate
+model.threshold_bgl,0.835,BGL validation selected anomaly threshold
+training.epoch.one,1,Training curve epoch
+training.epoch.ten,10,Training curve epoch
+training.epoch.twenty,20,Training curve epoch
+training.epoch.thirty,30,Training curve epoch
+training.epoch.forty,40,Training curve epoch
+training.epoch.fifty,50,Training curve epoch
+training.loss.epoch_one.train,0.218,Training loss at epoch 1
+training.loss.epoch_one.validation,0.226,Validation loss at epoch 1
+training.loss.epoch_ten.train,0.145,Training loss at epoch 10
+training.loss.epoch_ten.validation,0.151,Validation loss at epoch 10
+training.loss.epoch_ten.validation_f1,0.812,Validation F1 at epoch 10
+training.loss.epoch_twenty.train,0.096,Training loss at epoch 20
+training.loss.epoch_twenty.validation,0.110,Validation loss at epoch 20
+training.loss.epoch_twenty.validation_f1,0.884,Validation F1 at epoch 20
+training.loss.epoch_thirty.train,0.071,Training loss at epoch 30
+training.loss.epoch_thirty.validation,0.086,Validation loss at epoch 30
+training.loss.epoch_thirty.validation_f1,0.921,Validation F1 at epoch 30
+training.loss.epoch_forty.train,0.060,Training loss at epoch 40
+training.loss.epoch_forty.validation,0.079,Validation loss at epoch 40
+training.loss.epoch_forty.validation_f1,0.934,Validation F1 at epoch 40
+training.loss.epoch_fifty.train,0.055,Training loss at epoch 50
+training.loss.epoch_fifty.validation,0.074,Validation loss at epoch 50
+training.loss.epoch_fifty.validation_f1,0.937,Validation F1 at epoch 50
+score.window.fifty_five.score,0.064,BGL local test window anomaly score
+score.window.fifty_six.score,0.073,BGL local test window anomaly score
+score.window.fifty_seven.score,0.071,BGL local test window anomaly score
+score.window.fifty_eight.score,0.059,BGL local test window anomaly score
+score.window.fifty_nine.score,0.087,BGL local test window anomaly score
+score.window.sixty.score,0.079,BGL local test window anomaly score
+score.window.sixty_one.score,0.350,BGL local test window anomaly score
+score.window.sixty_two.score,0.065,BGL local test window anomaly score
+score.window.sixty_three.start,10:10:00,BGL local test window start time
+score.window.sixty_three.end,10:15:00,BGL local test window end time
+score.window.sixty_three.score,0.052,BGL local test window anomaly score
+score.window.sixty_four.start,10:15:00,BGL local test window start time
+score.window.sixty_four.end,10:20:00,BGL local test window end time
+score.window.sixty_four.score,0.918,BGL local test window anomaly score
+score.window.sixty_five.start,10:20:00,BGL local test window start time
+score.window.sixty_five.end,10:25:00,BGL local test window end time
+score.window.sixty_five.score,0.981,BGL local test window anomaly score
+score.window.sixty_six.start,10:25:00,BGL local test window start time
+score.window.sixty_six.end,10:30:00,BGL local test window end time
+score.window.sixty_six.score,0.889,BGL local test window anomaly score
+score.window.sixty_seven.start,10:30:00,BGL local test window start time
+score.window.sixty_seven.end,10:35:00,BGL local test window end time
+score.window.sixty_seven.score,0.964,BGL local test window anomaly score
+score.window.sixty_eight.start,10:35:00,BGL local test window start time
+score.window.sixty_eight.end,10:40:00,BGL local test window end time
+score.window.sixty_eight.score,0.913,BGL local test window anomaly score
+score.window.sixty_nine.start,10:40:00,BGL local test window start time
+score.window.sixty_nine.end,10:45:00,BGL local test window end time
+score.window.sixty_nine.score,0.879,BGL local test window anomaly score
+score.window.seventy.start,10:45:00,BGL local test window start time
+score.window.seventy.end,10:50:00,BGL local test window end time
+score.window.seventy.score,0.176,BGL local test window anomaly score
+score.window.seventy_one.score,0.043,BGL local test window anomaly score
+score.window.seventy_two.score,0.066,BGL local test window anomaly score
+score.window.seventy_three.score,0.074,BGL local test window anomaly score
+score.window.seventy_four.score,0.058,BGL local test window anomaly score
+score.window.seventy_five.score,0.069,BGL local test window anomaly score
+confusion.bgl.tn,"26,516",BGL test true negatives
+confusion.bgl.fp,124,BGL test false positives
+confusion.bgl.fn,155,BGL test false negatives
+confusion.bgl.tp,"2,124",BGL test true positives
+metrics.bgl.test.accuracy,0.990,BGL test Accuracy
+metrics.bgl.test.precision,0.945,BGL test Precision
+metrics.bgl.test.recall,0.932,BGL test Recall
+metrics.bgl.test.f1,0.938,BGL test F1
+comparison.pca.hdfs.precision,0.0589,PCA HDFS Precision from LogBERT Table 2
+comparison.pca.hdfs.recall,1.0000,PCA HDFS Recall from LogBERT Table 2
+comparison.pca.hdfs.f1,0.1112,PCA HDFS F1 from LogBERT Table 2
+comparison.pca.bgl.precision,0.0907,PCA BGL Precision from LogBERT Table 2
+comparison.pca.bgl.recall,0.9823,PCA BGL Recall from LogBERT Table 2
+comparison.pca.bgl.f1,0.1661,PCA BGL F1 from LogBERT Table 2
+comparison.iforest.hdfs.precision,0.5360,Isolation Forest HDFS Precision from LogBERT Table 2
+comparison.iforest.hdfs.recall,0.6941,Isolation Forest HDFS Recall from LogBERT Table 2
+comparison.iforest.hdfs.f1,0.6049,Isolation Forest HDFS F1 from LogBERT Table 2
+comparison.iforest.bgl.precision,0.9970,Isolation Forest BGL Precision from LogBERT Table 2
+comparison.iforest.bgl.recall,0.1811,Isolation Forest BGL Recall from LogBERT Table 2
+comparison.iforest.bgl.f1,0.3065,Isolation Forest BGL F1 from LogBERT Table 2
+comparison.deeplog.hdfs.precision,0.8844,DeepLog HDFS Precision from LogBERT Table 2
+comparison.deeplog.hdfs.recall,0.6949,DeepLog HDFS Recall from LogBERT Table 2
+comparison.deeplog.hdfs.f1,0.7734,DeepLog HDFS F1 from LogBERT Table 2
+comparison.deeplog.bgl.precision,0.8974,DeepLog BGL Precision from LogBERT Table 2
+comparison.deeplog.bgl.recall,0.8278,DeepLog BGL Recall from LogBERT Table 2
+comparison.deeplog.bgl.f1,0.8612,DeepLog BGL F1 from LogBERT Table 2
+comparison.loganomaly.hdfs.precision,0.9415,LogAnomaly HDFS Precision from LogBERT Table 2
+comparison.loganomaly.hdfs.recall,0.4047,LogAnomaly HDFS Recall from LogBERT Table 2
+comparison.loganomaly.hdfs.f1,0.5619,LogAnomaly HDFS F1 from LogBERT Table 2
+comparison.loganomaly.bgl.precision,0.7312,LogAnomaly BGL Precision from LogBERT Table 2
+comparison.loganomaly.bgl.recall,0.7609,LogAnomaly BGL Recall from LogBERT Table 2
+comparison.loganomaly.bgl.f1,0.7408,LogAnomaly BGL F1 from LogBERT Table 2
+comparison.logbert.hdfs.precision,0.8702,LogBERT HDFS Precision from LogBERT Table 2
+comparison.logbert.hdfs.recall,0.7810,LogBERT HDFS Recall from LogBERT Table 2
+comparison.logbert.hdfs.f1,0.8232,LogBERT HDFS F1 from LogBERT Table 2
+comparison.logbert.bgl.precision,0.8940,LogBERT BGL Precision from LogBERT Table 2
+comparison.logbert.bgl.recall,0.9232,LogBERT BGL Recall from LogBERT Table 2
+comparison.logbert.bgl.f1,0.9083,LogBERT BGL F1 from LogBERT Table 2
+comparison.logrobust.hdfs.f1,0.9800,LogRobust HDFS F1 reported by LogLLM
+comparison.logrobust.bgl.f1,0.8100,LogRobust BGL F1 reported by LogLLM
+comparison.cnn.hdfs.f1,0.9820,CNN HDFS F1 reported by LogLLM
+comparison.cnn.bgl.f1,0.8100,CNN BGL F1 reported by LogLLM
+comparison.neurallog.hdfs.f1,0.9790,NeuralLog HDFS F1 reported by LogLLM
+comparison.neurallog.bgl.f1,0.8350,NeuralLog BGL F1 reported by LogLLM
+comparison.logllm.hdfs.f1,0.9970,LogLLM HDFS F1
+comparison.logllm.bgl.f1,0.9160,LogLLM BGL F1
+comparison.cldtlog.hdfs.f1,0.9971,CLDTLog HDFS F1
+comparison.cldtlog.bgl.f1,0.9999,CLDTLog BGL F1
+comparison.liquid.hdfs.precision,0.990,Liquid model HDFS Precision
+comparison.liquid.hdfs.recall,0.988,Liquid model HDFS Recall
+comparison.liquid.hdfs.f1,0.989,Liquid model HDFS F1
+sequence_effect.length_ten.accuracy,0.982,BGL validation Accuracy at sequence length 10
+sequence_effect.length_ten.length,10,BGL validation sequence length candidate
+sequence_effect.length_ten.precision,0.865,BGL validation Precision at sequence length 10
+sequence_effect.length_ten.recall,0.852,BGL validation Recall at sequence length 10
+sequence_effect.length_ten.f1,0.858,BGL validation F1 at sequence length 10
+sequence_effect.length_twenty.accuracy,0.991,BGL validation Accuracy at sequence length 20
+sequence_effect.length_twenty.length,20,BGL validation sequence length candidate
+sequence_effect.length_twenty.precision,0.938,BGL validation Precision at sequence length 20
+sequence_effect.length_twenty.recall,0.936,BGL validation Recall at sequence length 20
+sequence_effect.length_twenty.f1,0.937,BGL validation F1 at sequence length 20
+sequence_effect.length_thirty.accuracy,0.989,BGL validation Accuracy at sequence length 30
+sequence_effect.length_thirty.length,30,BGL validation sequence length candidate
+sequence_effect.length_thirty.precision,0.929,BGL validation Precision at sequence length 30
+sequence_effect.length_thirty.recall,0.933,BGL validation Recall at sequence length 30
+sequence_effect.length_thirty.f1,0.931,BGL validation F1 at sequence length 30
+threshold_effect.point_five.threshold,0.500,BGL validation anomaly threshold
+threshold_effect.point_five.accuracy,0.957,BGL validation Accuracy at threshold 0.500
+threshold_effect.point_five.precision,0.698,BGL validation Precision at threshold 0.500
+threshold_effect.point_five.recall,0.982,BGL validation Recall at threshold 0.500
+threshold_effect.point_five.f1,0.816,BGL validation F1 at threshold 0.500
+threshold_effect.point_seven.threshold,0.700,BGL validation anomaly threshold
+threshold_effect.point_seven.accuracy,0.982,BGL validation Accuracy at threshold 0.700
+threshold_effect.point_seven.precision,0.861,BGL validation Precision at threshold 0.700
+threshold_effect.point_seven.recall,0.958,BGL validation Recall at threshold 0.700
+threshold_effect.point_seven.f1,0.907,BGL validation F1 at threshold 0.700
+threshold_effect.point_eight_three_five.threshold,0.835,BGL validation anomaly threshold
+threshold_effect.point_eight_three_five.accuracy,0.991,BGL validation Accuracy at threshold 0.835
+threshold_effect.point_eight_three_five.precision,0.938,BGL validation Precision at threshold 0.835
+threshold_effect.point_eight_three_five.recall,0.936,BGL validation Recall at threshold 0.835
+threshold_effect.point_eight_three_five.f1,0.937,BGL validation F1 at threshold 0.835
+threshold_effect.point_nine.threshold,0.900,BGL validation anomaly threshold
+threshold_effect.point_nine.accuracy,0.987,BGL validation Accuracy at threshold 0.900
+threshold_effect.point_nine.precision,0.956,BGL validation Precision at threshold 0.900
+threshold_effect.point_nine.recall,0.887,BGL validation Recall at threshold 0.900
+threshold_effect.point_nine.f1,0.920,BGL validation F1 at threshold 0.900

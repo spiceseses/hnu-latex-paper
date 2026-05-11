@@ -4,4 +4,4 @@
 
 实验过程中，原始日志首先经过字段抽取、时间排序和文本规范化处理；随后通过动态参数替换生成日志模板，并将模板映射为事件 ID。为了保证训练阶段和测试阶段输入空间一致，检测阶段未见过的模板统一映射为 \texttt{<UNK>} 事件。
 
-数据划分遵循训练集、验证集和测试集相互独立的原则。训练集用于模型参数更新，验证集用于输入序列长度、异常阈值和模型选择，测试集仅用于最终性能评价。本文以 BGL 测试集混淆矩阵作为最终指标计算依据，其中实际正常窗口 26,640 个，实际异常窗口 2,279 个；模型正确识别正常窗口 26,516 个，误报 124 个，漏报 155 个，正确识别异常窗口 2,124 个。由此计算得到 Accuracy 为 0.990、Precision 为 0.945、Recall 为 0.932、F1 值为 0.938。
+数据划分遵循训练集、验证集和测试集相互独立的原则。训练集用于模型参数更新，验证集用于输入序列长度、异常阈值和模型选择，测试集仅用于最终性能评价。本文以 BGL 测试集混淆矩阵作为最终指标计算依据，其中实际正常窗口 \ChFiveData{split.bgl.test.normal} 个，实际异常窗口 \ChFiveData{split.bgl.test.anomaly} 个；模型正确识别正常窗口 \ChFiveData{confusion.bgl.tn} 个，误报 \ChFiveData{confusion.bgl.fp} 个，漏报 \ChFiveData{confusion.bgl.fn} 个，正确识别异常窗口 \ChFiveData{confusion.bgl.tp} 个。由此计算得到 Accuracy 为 \ChFiveData{metrics.bgl.test.accuracy}、Precision 为 \ChFiveData{metrics.bgl.test.precision}、Recall 为 \ChFiveData{metrics.bgl.test.recall}、F1 值为 \ChFiveData{metrics.bgl.test.f1}。

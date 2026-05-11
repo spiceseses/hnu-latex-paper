@@ -42,8 +42,8 @@ BGL 数据集来源于 BlueGene/L 超级计算机系统日志。Oliner 和 Stear
         \hline
         \textbf{数据集} & \textbf{原始规模} & \textbf{检测粒度} & \textbf{实验用途} \\
         \hline
-        BGL & 4,747,963 条日志 & 时间窗口级 & 主要训练、验证和测试数据 \\
-        HDFS & 575,061 条 Block 轨迹 & Block 轨迹级 & 辅助模型对比数据 \\
+        BGL & \ChFiveData{dataset.bgl.raw.logs} 条日志 & 时间窗口级 & 主要训练、验证和测试数据 \\
+        HDFS & \ChFiveData{dataset.hdfs.raw.blocks} 条 Block 轨迹 & Block 轨迹级 & 辅助模型对比数据 \\
         \hline
     \end{tabular}
 \end{table}
@@ -62,9 +62,9 @@ BGL 数据集来源于 BlueGene/L 超级计算机系统日志。Oliner 和 Stear
         \hline
         \textbf{数据部分} & \textbf{正常窗口} & \textbf{异常窗口} & \textbf{合计} & \textbf{用途} \\
         \hline
-        训练集 & 93,300 & 7,938 & 101,238 & 模型参数训练 \\
-        验证集 & 13,300 & 1,162 & 14,462 & 参数与阈值选择 \\
-        测试集 & 26,640 & 2,279 & 28,919 & 最终性能评价 \\
+        训练集 & \ChFiveData{split.bgl.train.normal} & \ChFiveData{split.bgl.train.anomaly} & \ChFiveData{split.bgl.train.total} & 模型参数训练 \\
+        验证集 & \ChFiveData{split.bgl.validation.normal} & \ChFiveData{split.bgl.validation.anomaly} & \ChFiveData{split.bgl.validation.total} & 参数与阈值选择 \\
+        测试集 & \ChFiveData{split.bgl.test.normal} & \ChFiveData{split.bgl.test.anomaly} & \ChFiveData{split.bgl.test.total} & 最终性能评价 \\
         \hline
     \end{tabular}
 \end{table}
@@ -79,9 +79,9 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
         \hline
         \textbf{数据部分} & \textbf{正常轨迹} & \textbf{异常轨迹} & \textbf{合计} & \textbf{用途} \\
         \hline
-        训练集 & 390,753 & 11,790 & 402,543 & 模型训练 \\
-        验证集 & 55,822 & 1,684 & 57,506 & 参数选择 \\
-        测试集 & 111,648 & 3,364 & 115,012 & 性能评价 \\
+        训练集 & \ChFiveData{split.hdfs.train.normal} & \ChFiveData{split.hdfs.train.anomaly} & \ChFiveData{split.hdfs.train.total} & 模型训练 \\
+        验证集 & \ChFiveData{split.hdfs.validation.normal} & \ChFiveData{split.hdfs.validation.anomaly} & \ChFiveData{split.hdfs.validation.total} & 参数选择 \\
+        测试集 & \ChFiveData{split.hdfs.test.normal} & \ChFiveData{split.hdfs.test.anomaly} & \ChFiveData{split.hdfs.test.total} & 性能评价 \\
         \hline
     \end{tabular}
 \end{table}
@@ -192,13 +192,13 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
         \hline
         \textbf{参数} & \textbf{取值} \\
         \hline
-        输入序列长度 & 20 \\
-        Embedding 维度 & 32 \\
-        隐藏层维度 & 64 \\
-        Batch Size & 128 \\
-        Epoch & 50 \\
-        学习率 & 0.001 \\
-        BGL 验证集最优阈值 & 0.835 \\
+        输入序列长度 & \ChFiveData{model.sequence_length} \\
+        Embedding 维度 & \ChFiveData{model.embedding_dim} \\
+        隐藏层维度 & \ChFiveData{model.hidden_dim} \\
+        Batch Size & \ChFiveData{model.batch_size} \\
+        Epoch & \ChFiveData{model.epoch} \\
+        学习率 & \ChFiveData{model.learning_rate} \\
+        BGL 验证集最优阈值 & \ChFiveData{model.threshold_bgl} \\
         \hline
     \end{tabular}
 \end{table}
@@ -223,11 +223,21 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
             legend pos=north east
         ]
             \addplot[thick, mark=*] coordinates {
-                (1,0.218) (10,0.145) (20,0.096) (30,0.071) (40,0.060) (50,0.055)
+                (\ChFiveData{training.epoch.one},\ChFiveData{training.loss.epoch_one.train})
+                (\ChFiveData{training.epoch.ten},\ChFiveData{training.loss.epoch_ten.train})
+                (\ChFiveData{training.epoch.twenty},\ChFiveData{training.loss.epoch_twenty.train})
+                (\ChFiveData{training.epoch.thirty},\ChFiveData{training.loss.epoch_thirty.train})
+                (\ChFiveData{training.epoch.forty},\ChFiveData{training.loss.epoch_forty.train})
+                (\ChFiveData{training.epoch.fifty},\ChFiveData{training.loss.epoch_fifty.train})
             };
             \addlegendentry{训练 Loss}
             \addplot[thick, dashed, mark=square*] coordinates {
-                (1,0.226) (10,0.151) (20,0.110) (30,0.086) (40,0.079) (50,0.074)
+                (\ChFiveData{training.epoch.one},\ChFiveData{training.loss.epoch_one.validation})
+                (\ChFiveData{training.epoch.ten},\ChFiveData{training.loss.epoch_ten.validation})
+                (\ChFiveData{training.epoch.twenty},\ChFiveData{training.loss.epoch_twenty.validation})
+                (\ChFiveData{training.epoch.thirty},\ChFiveData{training.loss.epoch_thirty.validation})
+                (\ChFiveData{training.epoch.forty},\ChFiveData{training.loss.epoch_forty.validation})
+                (\ChFiveData{training.epoch.fifty},\ChFiveData{training.loss.epoch_fifty.validation})
             };
             \addlegendentry{验证 Loss}
         \end{axis}
@@ -244,22 +254,22 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
         \hline
         \textbf{轮数} & \textbf{训练 Loss} & \textbf{验证 Loss} & \textbf{验证 F1} \\
         \hline
-        10 & 0.145 & 0.151 & 0.812 \\
-        20 & 0.096 & 0.110 & 0.884 \\
-        30 & 0.071 & 0.086 & 0.921 \\
-        40 & 0.060 & 0.079 & 0.934 \\
-        50 & 0.055 & 0.074 & 0.937 \\
+        \ChFiveData{training.epoch.ten} & \ChFiveData{training.loss.epoch_ten.train} & \ChFiveData{training.loss.epoch_ten.validation} & \ChFiveData{training.loss.epoch_ten.validation_f1} \\
+        \ChFiveData{training.epoch.twenty} & \ChFiveData{training.loss.epoch_twenty.train} & \ChFiveData{training.loss.epoch_twenty.validation} & \ChFiveData{training.loss.epoch_twenty.validation_f1} \\
+        \ChFiveData{training.epoch.thirty} & \ChFiveData{training.loss.epoch_thirty.train} & \ChFiveData{training.loss.epoch_thirty.validation} & \ChFiveData{training.loss.epoch_thirty.validation_f1} \\
+        \ChFiveData{training.epoch.forty} & \ChFiveData{training.loss.epoch_forty.train} & \ChFiveData{training.loss.epoch_forty.validation} & \ChFiveData{training.loss.epoch_forty.validation_f1} \\
+        \ChFiveData{training.epoch.fifty} & \ChFiveData{training.loss.epoch_fifty.train} & \ChFiveData{training.loss.epoch_fifty.validation} & \ChFiveData{training.loss.epoch_fifty.validation_f1} \\
         \hline
     \end{tabular}
 \end{table}
 
-训练结果表明，模型在 30 轮后验证损失下降速度变缓，验证 F1 值提升幅度减小。本文保留 50 轮训练结果作为最终模型，并在验证集上选择异常判定阈值。
+训练结果表明，模型在 \ChFiveData{training.epoch.thirty} 轮后验证损失下降速度变缓，验证 F1 值提升幅度减小。本文保留 \ChFiveData{model.epoch} 轮训练结果作为最终模型，并在验证集上选择异常判定阈值。
 
 \section{结果分析}
 
 \subsection{异常评分}
 
-表 \ref{tab:anomaly_score_result_revised} 展示了 BGL 测试集中一段连续窗口的异常评分示例。该示例与图 \ref{fig:anomaly_score_trend_revised} 使用同一组局部窗口评分，横轴表示测试窗口编号，纵轴表示模型输出的异常评分，虚线表示验证集选择得到的阈值 0.835。
+表 \ref{tab:anomaly_score_result_revised} 展示了 BGL 测试集中一段连续窗口的异常评分示例。该示例与图 \ref{fig:anomaly_score_trend_revised} 使用同一组局部窗口评分，横轴表示测试窗口编号，纵轴表示模型输出的异常评分，虚线表示验证集选择得到的阈值 \ChFiveData{model.threshold_bgl}。
 
 \begin{table}[htbp]
     \centering
@@ -269,14 +279,14 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
         \hline
         \textbf{窗口} & \textbf{起始时间} & \textbf{结束时间} & \textbf{评分} & \textbf{结果} \\
         \hline
-        W63 & 10:10:00 & 10:15:00 & 0.052 & 正常 \\
-        W64 & 10:15:00 & 10:20:00 & 0.918 & 异常 \\
-        W65 & 10:20:00 & 10:25:00 & 0.981 & 异常 \\
-        W66 & 10:25:00 & 10:30:00 & 0.889 & 异常 \\
-        W67 & 10:30:00 & 10:35:00 & 0.964 & 异常 \\
-        W68 & 10:35:00 & 10:40:00 & 0.913 & 异常 \\
-        W69 & 10:40:00 & 10:45:00 & 0.879 & 异常 \\
-        W70 & 10:45:00 & 10:50:00 & 0.176 & 正常 \\
+        W63 & \ChFiveData{score.window.sixty_three.start} & \ChFiveData{score.window.sixty_three.end} & \ChFiveData{score.window.sixty_three.score} & 正常 \\
+        W64 & \ChFiveData{score.window.sixty_four.start} & \ChFiveData{score.window.sixty_four.end} & \ChFiveData{score.window.sixty_four.score} & 异常 \\
+        W65 & \ChFiveData{score.window.sixty_five.start} & \ChFiveData{score.window.sixty_five.end} & \ChFiveData{score.window.sixty_five.score} & 异常 \\
+        W66 & \ChFiveData{score.window.sixty_six.start} & \ChFiveData{score.window.sixty_six.end} & \ChFiveData{score.window.sixty_six.score} & 异常 \\
+        W67 & \ChFiveData{score.window.sixty_seven.start} & \ChFiveData{score.window.sixty_seven.end} & \ChFiveData{score.window.sixty_seven.score} & 异常 \\
+        W68 & \ChFiveData{score.window.sixty_eight.start} & \ChFiveData{score.window.sixty_eight.end} & \ChFiveData{score.window.sixty_eight.score} & 异常 \\
+        W69 & \ChFiveData{score.window.sixty_nine.start} & \ChFiveData{score.window.sixty_nine.end} & \ChFiveData{score.window.sixty_nine.score} & 异常 \\
+        W70 & \ChFiveData{score.window.seventy.start} & \ChFiveData{score.window.seventy.end} & \ChFiveData{score.window.seventy.score} & 正常 \\
         \hline
     \end{tabular}
 \end{table}
@@ -297,14 +307,31 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
             legend pos=north west
         ]
             \addplot[thick, mark=*] coordinates {
-                (55,0.064) (56,0.073) (57,0.071) (58,0.059) (59,0.087)
-                (60,0.079) (61,0.350) (62,0.065) (63,0.052) (64,0.918)
-                (65,0.981) (66,0.889) (67,0.964) (68,0.913) (69,0.879)
-                (70,0.176) (71,0.043) (72,0.066) (73,0.074) (74,0.058) (75,0.069)
+                (55,\ChFiveData{score.window.fifty_five.score})
+                (56,\ChFiveData{score.window.fifty_six.score})
+                (57,\ChFiveData{score.window.fifty_seven.score})
+                (58,\ChFiveData{score.window.fifty_eight.score})
+                (59,\ChFiveData{score.window.fifty_nine.score})
+                (60,\ChFiveData{score.window.sixty.score})
+                (61,\ChFiveData{score.window.sixty_one.score})
+                (62,\ChFiveData{score.window.sixty_two.score})
+                (63,\ChFiveData{score.window.sixty_three.score})
+                (64,\ChFiveData{score.window.sixty_four.score})
+                (65,\ChFiveData{score.window.sixty_five.score})
+                (66,\ChFiveData{score.window.sixty_six.score})
+                (67,\ChFiveData{score.window.sixty_seven.score})
+                (68,\ChFiveData{score.window.sixty_eight.score})
+                (69,\ChFiveData{score.window.sixty_nine.score})
+                (70,\ChFiveData{score.window.seventy.score})
+                (71,\ChFiveData{score.window.seventy_one.score})
+                (72,\ChFiveData{score.window.seventy_two.score})
+                (73,\ChFiveData{score.window.seventy_three.score})
+                (74,\ChFiveData{score.window.seventy_four.score})
+                (75,\ChFiveData{score.window.seventy_five.score})
             };
             \addlegendentry{异常评分}
-            \addplot[thick, dashed] coordinates {(55,0.835) (75,0.835)};
-            \addlegendentry{阈值 0.835}
+            \addplot[thick, dashed] coordinates {(55,\ChFiveData{model.threshold_bgl}) (75,\ChFiveData{model.threshold_bgl})};
+            \addlegendentry{阈值 \ChFiveData{model.threshold_bgl}}
         \end{axis}
     \end{tikzpicture}
     \caption{Liquid 模型在 BGL 测试集局部窗口上的异常评分趋势}
@@ -313,7 +340,7 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
 
 \subsection{评价结果}
 
-本文将 BGL 测试集最终结果统一为表 \ref{tab:confusion_matrix_revised} 所示的混淆矩阵。由该混淆矩阵计算得到 Accuracy 为 0.990、Precision 为 0.945、Recall 为 0.932、F1 值为 0.938，结果如表 \ref{tab:liquid_detection_result_revised} 所示。
+本文将 BGL 测试集最终结果统一为表 \ref{tab:confusion_matrix_revised} 所示的混淆矩阵。由该混淆矩阵计算得到 Accuracy 为 \ChFiveData{metrics.bgl.test.accuracy}、Precision 为 \ChFiveData{metrics.bgl.test.precision}、Recall 为 \ChFiveData{metrics.bgl.test.recall}、F1 值为 \ChFiveData{metrics.bgl.test.f1}，结果如表 \ref{tab:liquid_detection_result_revised} 所示。
 
 \begin{table}[htbp]
     \centering
@@ -323,8 +350,8 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
         \hline
         \textbf{} & \textbf{预测正常} & \textbf{预测异常} \\
         \hline
-        实际正常 & 26,516 & 124 \\
-        实际异常 & 155 & 2,124 \\
+        实际正常 & \ChFiveData{confusion.bgl.tn} & \ChFiveData{confusion.bgl.fp} \\
+        实际异常 & \ChFiveData{confusion.bgl.fn} & \ChFiveData{confusion.bgl.tp} \\
         \hline
     \end{tabular}
 \end{table}
@@ -337,10 +364,10 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
         \hline
         \textbf{指标} & \textbf{结果} \\
         \hline
-        Accuracy & 0.990 \\
-        Precision & 0.945 \\
-        Recall & 0.932 \\
-        F1 值 & 0.938 \\
+        Accuracy & \ChFiveData{metrics.bgl.test.accuracy} \\
+        Precision & \ChFiveData{metrics.bgl.test.precision} \\
+        Recall & \ChFiveData{metrics.bgl.test.recall} \\
+        F1 值 & \ChFiveData{metrics.bgl.test.f1} \\
         \hline
     \end{tabular}
 \end{table}
@@ -349,65 +376,88 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
 
 \section{对比实验分析}
 
-为评估本文模型的相对效果，实验选取传统统计方法、传统异常检测方法和深度日志模型作为对比对象。Jolliffe 系统阐述的 PCA 可用于从高维统计特征中提取主要变化方向\cite{jolliffe2002pca}；Liu 等提出的 Isolation Forest 是无监督异常检测中的代表性方法\cite{liu2008isolation}；Du 等提出的 DeepLog 使用 LSTM 学习日志事件序列模式\cite{du2017deeplog}；Meng 等提出的 LogAnomaly 同时关注序列异常和数量异常\cite{meng2019loganomaly}；Guo 等提出的 LogBERT 利用 BERT 表示学习日志上下文\cite{guo2021logbert}。
+为评估本文方法所处的位置，本节将对比实验分为两类。第一类是本文系统内部的实验结果，用于验证 Liquid 模型和联合特征能否完成窗口级异常检测；第二类是公开文献中的代表性高水平方法，用于说明当前日志异常检测研究的大致发展水平。这样处理的原因是，不同论文在日志解析器、窗口构造、训练测试划分、异常标签粒度和数据清洗策略上往往不同，直接把所有指标视为同一排行榜并不严谨\cite{le2022howfar,landauer2023survey,ali2025comprehensive}。
 
-为保证对比结果具有一致口径，本文对各模型使用相同的数据划分和解析结果。传统模型使用窗口频次向量，序列模型使用事件序列，本文 Liquid 模型使用事件频次、事件序列和时间间隔联合特征。不同模型在 HDFS 和 BGL 数据集上的结果如表 \ref{tab:model_comparison_result_revised} 所示，F1 值对比如图 \ref{fig:model_f1_comparison_revised} 所示。
+近年来，日志异常检测方法已经从传统统计模型和循环神经网络，逐步发展到鲁棒语义表示、对比学习和大语言模型增强方法。LogRobust 关注日志模板变化带来的鲁棒性问题；NeuralLog 尝试利用语义表示学习日志事件关系；CLDTLog 使用对比学习和双目标任务提升日志表征能力\cite{tian2023cldtlog}；LogLLM 则将大语言模型引入日志异常检测，探索更强的语义理解能力\cite{guan2024logllm}。因此，本文不将 Liquid 模型描述为公开数据集上的最优方法，而是将其定位为一种将事件频次、事件顺序和时间间隔结合起来的可行实现。
 
 \begin{table}[htbp]
     \centering
-    \caption{不同模型异常检测结果对比}
+    \caption{代表性方法公开结果与本文结果参考}
     \label{tab:model_comparison_result_revised}
-    \begin{tabular}{p{2.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}}
+    \small
+    \begin{tabular}{@{}p{2.4cm}p{4.4cm}ccp{2.0cm}@{}}
         \hline
-        \textbf{模型} & \textbf{HDFS-P} & \textbf{HDFS-R} & \textbf{HDFS-F1} & \textbf{BGL-P} & \textbf{BGL-R} & \textbf{BGL-F1} \\
+        \textbf{方法} & \textbf{主要特点} & \textbf{HDFS-F1} & \textbf{BGL-F1} & \textbf{来源} \\
         \hline
-        PCA & 0.780 & 0.759 & 0.769 & 0.670 & 0.637 & 0.653 \\
-        Isolation Forest & 0.804 & 0.788 & 0.796 & 0.690 & 0.655 & 0.672 \\
-        DeepLog & 0.962 & 0.952 & 0.957 & 0.858 & 0.825 & 0.841 \\
-        LogAnomaly & 0.966 & 0.958 & 0.962 & 0.872 & 0.845 & 0.858 \\
-        LogBERT & 0.986 & 0.980 & 0.983 & 0.914 & 0.891 & 0.902 \\
-        Liquid 模型 & 0.990 & 0.988 & 0.989 & 0.945 & 0.932 & 0.938 \\
+        LogRobust & 鲁棒日志表示 & \ChFiveData{comparison.logrobust.hdfs.f1} & \ChFiveData{comparison.logrobust.bgl.f1} & 文献 \cite{guan2024logllm} \\
+        CNN & 卷积序列建模 & \ChFiveData{comparison.cnn.hdfs.f1} & \ChFiveData{comparison.cnn.bgl.f1} & 文献 \cite{guan2024logllm} \\
+        NeuralLog & 语义表示学习 & \ChFiveData{comparison.neurallog.hdfs.f1} & \ChFiveData{comparison.neurallog.bgl.f1} & 文献 \cite{guan2024logllm} \\
+        LogLLM & 大语言模型增强 & \ChFiveData{comparison.logllm.hdfs.f1} & \ChFiveData{comparison.logllm.bgl.f1} & 文献 \cite{guan2024logllm} \\
+        CLDTLog & 对比学习与双目标任务 & \ChFiveData{comparison.cldtlog.hdfs.f1} & \ChFiveData{comparison.cldtlog.bgl.f1} & 文献 \cite{tian2023cldtlog} \\
+        Liquid 模型 & 联合特征与时间间隔建模 & \ChFiveData{comparison.liquid.hdfs.f1} & \ChFiveData{metrics.bgl.test.f1} & 本文实验 \\
         \hline
     \end{tabular}
+    \vspace{2pt}
+
+    \begin{minipage}{0.92\textwidth}
+        \footnotesize 注：公开方法结果来自相应文献，本文只统一换算为小数形式。由于实验协议并不完全一致，该表用于说明领域发展水平和参考位置，不作为严格同口径排名。
+    \end{minipage}
 \end{table}
 
 \begin{figure}[htbp]
     \centering
+    \definecolor{chartHDFS}{RGB}{38,113,181}
+    \definecolor{chartBGL}{RGB}{199,82,117}
     \begin{tikzpicture}
         \begin{axis}[
             ybar,
-            width=0.88\textwidth,
-            height=6.5cm,
-            bar width=6pt,
-            ymin=0.60, ymax=1.02,
+            width=0.96\textwidth,
+            height=7.2cm,
+            bar width=8pt,
+            ymin=0, ymax=1.12,
             ylabel={F1 值},
-            symbolic x coords={PCA,IF,DeepLog,LogAnomaly,LogBERT,Liquid},
+            ytick={0,0.2,0.4,0.6,0.8,1.0},
+            enlarge x limits=0.12,
+            symbolic x coords={LogRobust,CNN,NeuralLog,LogLLM,CLDTLog,Liquid},
             xtick=data,
-            xticklabels={PCA,Isolation Forest,DeepLog,LogAnomaly,LogBERT,Liquid},
-            x tick label style={rotate=25,anchor=east},
+            xticklabels={LogRobust,CNN,NeuralLog,LogLLM,CLDTLog,Liquid},
+            x tick label style={rotate=0,anchor=north,font=\small,text depth=0pt},
+            tick label style={font=\small},
+            label style={font=\small},
             ymajorgrids=true,
-            grid style={gray!25},
-            legend pos=north west,
+            grid style={gray!20},
+            axis line style={gray!45},
+            legend style={at={(0.02,0.98)},anchor=north west,draw=none,fill=white,fill opacity=0.88,text opacity=1,font=\small},
             nodes near coords,
+            point meta=y,
+            nodes near coords={\pgfmathprintnumber[fixed,precision=3]{\pgfplotspointmeta}},
             nodes near coords align={vertical},
-            every node near coord/.append style={font=\scriptsize}
+            every node near coord/.append style={font=\scriptsize,text=black,yshift=2pt,inner sep=1pt,fill=white,fill opacity=0.86,text opacity=1}
         ]
-            \addplot coordinates {
-                (PCA,0.769) (IF,0.796) (DeepLog,0.957)
-                (LogAnomaly,0.962) (LogBERT,0.983) (Liquid,0.989)
+            \addplot+[draw=none, fill=chartHDFS, every node near coord/.append style={xshift=-4pt}] coordinates {
+                (LogRobust,\ChFiveData{comparison.logrobust.hdfs.f1})
+                (CNN,\ChFiveData{comparison.cnn.hdfs.f1})
+                (NeuralLog,\ChFiveData{comparison.neurallog.hdfs.f1})
+                (LogLLM,\ChFiveData{comparison.logllm.hdfs.f1})
+                (CLDTLog,\ChFiveData{comparison.cldtlog.hdfs.f1})
+                (Liquid,\ChFiveData{comparison.liquid.hdfs.f1})
             };
-            \addplot coordinates {
-                (PCA,0.653) (IF,0.672) (DeepLog,0.841)
-                (LogAnomaly,0.858) (LogBERT,0.902) (Liquid,0.938)
+            \addplot+[draw=none, fill=chartBGL, every node near coord/.append style={xshift=4pt}] coordinates {
+                (LogRobust,\ChFiveData{comparison.logrobust.bgl.f1})
+                (CNN,\ChFiveData{comparison.cnn.bgl.f1})
+                (NeuralLog,\ChFiveData{comparison.neurallog.bgl.f1})
+                (LogLLM,\ChFiveData{comparison.logllm.bgl.f1})
+                (CLDTLog,\ChFiveData{comparison.cldtlog.bgl.f1})
+                (Liquid,\ChFiveData{metrics.bgl.test.f1})
             };
             \legend{HDFS,BGL}
         \end{axis}
     \end{tikzpicture}
-    \caption{不同模型在 HDFS 和 BGL 数据集上的 F1 值对比}
+    \caption{代表性方法与本文模型在 HDFS 和 BGL 数据集上的 F1 值参考}
     \label{fig:model_f1_comparison_revised}
 \end{figure}
 
-从表 \ref{tab:model_comparison_result_revised} 可以看出，传统统计模型在复杂日志序列上的表达能力有限；序列模型能够利用上下文信息，整体效果优于传统模型；本文 Liquid 模型进一步引入真实时间间隔特征，在两个数据集上的 F1 值均高于对比模型。需要说明的是，不同模型输入特征并不完全相同，因此该对比主要用于说明联合特征和连续时间建模在本文实验口径下的有效性。
+从表 \ref{tab:model_comparison_result_revised} 可以看出，近年高水平方法在 HDFS 数据集上通常能够取得较高 F1 值，说明该数据集在经过充分调参和成熟协议处理后已较难体现方法差异。BGL 数据集日志规模更大、事件类型更复杂，不同方法之间差异更明显。本文 Liquid 模型在 BGL 上取得 \ChFiveData{metrics.bgl.test.f1} 的 F1 值，说明联合特征与时间间隔建模具有一定效果；但与 CLDTLog、LogLLM 等更强调语义表示、对比学习或大语言模型能力的方法相比，本文仍属于较基础的系统实现和可行性验证。换言之，本文结果表现为相对平稳的小幅改进，而不是对当前公开 SOTA 的超越。
 
 \section{参数影响}
 
@@ -423,14 +473,14 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
         \hline
         \textbf{序列长度} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
         \hline
-        10 & 0.982 & 0.865 & 0.852 & 0.858 \\
-        20 & 0.991 & 0.938 & 0.936 & 0.937 \\
-        30 & 0.989 & 0.929 & 0.933 & 0.931 \\
+        \ChFiveData{sequence_effect.length_ten.length} & \ChFiveData{sequence_effect.length_ten.accuracy} & \ChFiveData{sequence_effect.length_ten.precision} & \ChFiveData{sequence_effect.length_ten.recall} & \ChFiveData{sequence_effect.length_ten.f1} \\
+        \ChFiveData{sequence_effect.length_twenty.length} & \ChFiveData{sequence_effect.length_twenty.accuracy} & \ChFiveData{sequence_effect.length_twenty.precision} & \ChFiveData{sequence_effect.length_twenty.recall} & \ChFiveData{sequence_effect.length_twenty.f1} \\
+        \ChFiveData{sequence_effect.length_thirty.length} & \ChFiveData{sequence_effect.length_thirty.accuracy} & \ChFiveData{sequence_effect.length_thirty.precision} & \ChFiveData{sequence_effect.length_thirty.recall} & \ChFiveData{sequence_effect.length_thirty.f1} \\
         \hline
     \end{tabular}
 \end{table}
 
-由表 \ref{tab:sequence_length_effect_revised} 可知，序列长度过短时上下文不足；序列长度过长时训练成本增加，且可能引入与当前异常关系较弱的事件。本文最终选择 20 作为默认输入序列长度。
+由表 \ref{tab:sequence_length_effect_revised} 可知，序列长度过短时上下文不足；序列长度过长时训练成本增加，且可能引入与当前异常关系较弱的事件。本文最终选择 \ChFiveData{model.sequence_length} 作为默认输入序列长度。
 
 \subsection{判定阈值}
 
@@ -444,21 +494,21 @@ HDFS 数据集按照 Block ID 聚合为轨迹样本，划分情况如表 \ref{ta
         \hline
         \textbf{阈值} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
         \hline
-        0.500 & 0.957 & 0.698 & 0.982 & 0.816 \\
-        0.700 & 0.982 & 0.861 & 0.958 & 0.907 \\
-        0.835 & 0.991 & 0.938 & 0.936 & 0.937 \\
-        0.900 & 0.987 & 0.956 & 0.887 & 0.920 \\
+        \ChFiveData{threshold_effect.point_five.threshold} & \ChFiveData{threshold_effect.point_five.accuracy} & \ChFiveData{threshold_effect.point_five.precision} & \ChFiveData{threshold_effect.point_five.recall} & \ChFiveData{threshold_effect.point_five.f1} \\
+        \ChFiveData{threshold_effect.point_seven.threshold} & \ChFiveData{threshold_effect.point_seven.accuracy} & \ChFiveData{threshold_effect.point_seven.precision} & \ChFiveData{threshold_effect.point_seven.recall} & \ChFiveData{threshold_effect.point_seven.f1} \\
+        \ChFiveData{threshold_effect.point_eight_three_five.threshold} & \ChFiveData{threshold_effect.point_eight_three_five.accuracy} & \ChFiveData{threshold_effect.point_eight_three_five.precision} & \ChFiveData{threshold_effect.point_eight_three_five.recall} & \ChFiveData{threshold_effect.point_eight_three_five.f1} \\
+        \ChFiveData{threshold_effect.point_nine.threshold} & \ChFiveData{threshold_effect.point_nine.accuracy} & \ChFiveData{threshold_effect.point_nine.precision} & \ChFiveData{threshold_effect.point_nine.recall} & \ChFiveData{threshold_effect.point_nine.f1} \\
         \hline
     \end{tabular}
 \end{table}
 
-由表 \ref{tab:threshold_effect_revised} 可见，较低阈值能够提高 Recall，但会增加误报；较高阈值能够提高 Precision，但可能增加漏报。阈值 0.835 在验证集上取得最高 F1 值，因此本文将其作为最终异常判定阈值，并固定该阈值用于测试集评价。
+由表 \ref{tab:threshold_effect_revised} 可见，较低阈值能够提高 Recall，但会增加误报；较高阈值能够提高 Precision，但可能增加漏报。阈值 \ChFiveData{model.threshold_bgl} 在验证集上取得最高 F1 值，因此本文将其作为最终异常判定阈值，并固定该阈值用于测试集评价。
 
 \section{结果讨论}
 
-综合实验结果，本文系统能够完成日志读取、预处理、解析、特征构建、模型训练、异常推断和结果输出的完整流程。功能测试表明，各模块输入输出格式稳定，训练阶段和检测阶段能够复用相同的模板空间和特征规则。模型实验表明，Liquid 模型在 BGL 测试集上取得了 0.938 的 F1 值，说明联合特征和连续时间建模对日志异常检测具有实际作用。
+综合实验结果，本文系统能够完成日志读取、预处理、解析、特征构建、模型训练、异常推断和结果输出的完整流程。功能测试表明，各模块输入输出格式稳定，训练阶段和检测阶段能够复用相同的模板空间和特征规则。模型实验表明，Liquid 模型在 BGL 测试集上取得了 \ChFiveData{metrics.bgl.test.f1} 的 F1 值，说明联合特征和连续时间建模对日志异常检测具有一定作用。考虑到本文日志解析规则、窗口划分方式和阈值选择均较为基础，该结果更适合作为系统可行性的验证，而不宜解读为公开数据集上的最优表现。
 
-需要说明的是，实验结果仍受到数据集规模、日志模板质量和阈值选择方式影响。本文实验能够证明方法的可行性，但并不意味着模型在所有服务器日志场景中都能直接取得相同效果。对于日志格式变化较大的实际系统，仍需结合新增日志样本更新模板规则和模型参数。
+需要说明的是，实验结果仍受到数据集规模、日志模板质量、样本划分和阈值选择方式影响。本文实验能够证明方法的可行性，但并不意味着模型在所有服务器日志场景中都能直接取得相同效果。对于日志格式变化较大的实际系统，仍需结合新增日志样本更新模板规则和模型参数，并通过更严格的跨数据集测试、时间开销评估和消融实验进一步验证。
 
 从误报和漏报角度看，本文模型的误报主要来自正常窗口中短时间出现的高频错误级别日志，这类窗口在特征上接近异常窗口；漏报主要来自异常持续时间较短或异常日志数量较少的窗口，这类窗口的统计特征不突出。该现象说明，后续系统可以在结果输出中进一步加入事件重要性分析，以辅助判断异常评分的来源。
 

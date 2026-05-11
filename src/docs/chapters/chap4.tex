@@ -281,10 +281,11 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
 
 \begin{figure}[htbp]
     \centering
+    \resizebox{0.96\textwidth}{!}{%
     \begin{tikzpicture}[
-        node distance=1.2cm,
-        block/.style={rectangle, draw, rounded corners, minimum width=2.8cm, minimum height=0.8cm, align=center},
-        arrow/.style={->, thick}
+        node distance=0.72cm,
+        block/.style={rectangle, draw=gray!65, fill=gray!6, rounded corners=2pt, minimum width=2.35cm, minimum height=0.75cm, align=center, font=\small},
+        arrow/.style={-{Stealth[length=2.2mm]}, thick, draw=gray!70}
     ]
         \node[block] (input) {联合特征序列};
         \node[block, right=of input] (embed) {嵌入层};
@@ -295,7 +296,8 @@ Liquid 异常检测模型以联合特征序列 $U_j$ 为输入，以窗口标签
         \draw[arrow] (embed) -- (liquid);
         \draw[arrow] (liquid) -- (fc);
         \draw[arrow] (fc) -- (out);
-    \end{tikzpicture}
+    \end{tikzpicture}%
+    }
     \caption{Liquid 异常检测模型结构}
     \label{fig:liquid_model_structure_revised}
 \end{figure}
